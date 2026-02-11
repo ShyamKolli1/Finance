@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Analytics - Finance Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <script src="../../storage.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script src="../../js/charts.js"></script>
+</head>
+<body>
+
+<div style="text-align: center; color: white; margin-bottom: 20px;">
+  <h1>📊 Financial Analytics</h1>
+</div>
+
+<div style="max-width: 1400px; margin: 0 auto;">
+  <div class="top-nav">
+    <a href="../../index.html"><button class="btn-back">← Back to Tracker</button></a>
+    <a href="../labels.html"><button style="background:#9C27B0; color:white;">⚙ Manage Labels</button></a>
+    <a href="monthly.html"><button style="background:#FF9800; color:white;">📅 Monthly</button></a>
+    <a href="compare.html"><button style="background:#FF5722; color:white;">📊 Compare</button></a>
+    <button id="reportBtn" onclick="showReport()" style="background:#4CAF50; color:white;">📝 Report</button>
+  </div>
+
+  <div id="debugInfo" style="font-size:13px; color:#666; margin-bottom:8px;">⏳ Loading...</div>
+
+  <!-- Summary Stats -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+    <div class="card">
+      <h3>Total Income</h3>
+      <div style="font-size: 28px; font-weight: bold; color: #f093fb;">$<span id="totalIncome">0.00</span></div>
+    </div>
+    <div class="card">
+      <h3>Total Expense</h3>
+      <div style="font-size: 28px; font-weight: bold; color: #4facfe;">$<span id="totalExpense">0.00</span></div>
+    </div>
+    <div class="card">
+      <h3>Net Balance</h3>
+      <div style="font-size: 28px; font-weight: bold; color: #4CAF50;">$<span id="netBalance">0.00</span></div>
+    </div>
+  </div>
+
+  <!-- Main Charts -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+    <div class="card" style="position: relative;">
+      <button class="zoom-icon" onclick="zoomChart('incomeExpenseChart', 'Income vs Expense')">🔍</button>
+      <h3>Income vs Expense</h3>
+      <div style="position: relative; height: 300px;">
+        <canvas id="incomeExpenseChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card" style="position: relative;">
+      <button class="zoom-icon" onclick="zoomChart('accountChart', 'Cash vs Bank')">🔍</button>
+      <h3>Cash vs Bank</h3>
+      <div style="position: relative; height: 300px;">
+        <canvas id="accountChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Breakdowns -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+    <div class="card" style="position: relative;">
+      <button class="zoom-icon" onclick="zoomChart('expenseByLabelChart', 'Expense Breakdown')">🔍</button>
+      <h3>Expense by Category</h3>
+      <div style="position: relative; height: 300px;">
+        <canvas id="expenseByLabelChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card" style="position: relative;">
+      <button class="zoom-icon" onclick="zoomChart('incomeByLabelChart', 'Income Breakdown')">🔍</button>
+      <h3>Income by Category</h3>
+      <div style="position: relative; height: 300px;">
+        <canvas id="incomeByLabelChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Account Split</h3>
+      <table style="width: 100%; font-size: 14px;">
+        <tr style="border-bottom: 1px solid #eee;">
+          <td><strong>Cash Income</strong></td>
+          <td style="text-align: right;">$<span id="cashIncome">0.00</span></td>
+        </tr>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td><strong>Cash Expense</strong></td>
+          <td style="text-align: right;">$<span id="cashExpense">0.00</span></td>
+        </tr>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td><strong>Bank Income</strong></td>
+          <td style="text-align: right;">$<span id="bankIncome">0.00</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bank Expense</strong></td>
+          <td style="text-align: right;">$<span id="bankExpense">0.00</span></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Label Details -->
+  <div class="card">
+    <h3>View Label Details</h3>
+    <label for="labelSelect"><strong>Select a Label:</strong></label>
+    <select id="labelSelect" onchange="showLabelDetails()">
+      <option value="">-- Select a Label --</option>
+    </select>
+    
+    <div id="labelDetailsContainer" style="display:none; margin-top: 20px;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
+            <th style="padding: 10px; text-align: left;">Date</th>
+            <th style="padding: 10px; text-align: left;">Type</th>
+            <th style="padding: 10px; text-align: left;">Account</th>
+            <th style="padding: 10px; text-align: right;">Amount</th>
+          </tr>
+        </thead>
+        <tbody id="labelDetailsBody"></tbody>
+      </table>
+      <div style="margin-top: 15px; font-size: 18px; font-weight: bold;">
+        Total: $<span id="labelTotal">0.00</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Zoom Modal -->
+<div id="zoomModal" class="modal">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeZoom()">✕</button>
+    <h2 id="zoomTitle" style="margin-top: 0;">Chart</h2>
+    <div style="position: relative; height: 400px;">
+      <canvas id="zoomChartCanvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Report Modal -->
+<div id="reportModal" class="modal">
+  <div class="modal-content" style="max-width: 800px;">
+    <button class="modal-close" onclick="closeReport()">✕</button>
+    <h2 style="margin-top: 0;">Exportable Report</h2>
+    <textarea id="reportText" style="width: 100%; height: 60%; padding: 10px; margin: 15px 0; border: 1px solid #ddd; border-radius: 6px; font-family: monospace;"></textarea>
+    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+      <button class="btn-primary" onclick="copyReport()">Copy to Clipboard</button>
+      <button class="btn-secondary" onclick="closeReport()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function initCharts() {
+  try {
+    const rawData = localStorage.getItem('financeData');
+    if (!rawData) {
+      document.getElementById('debugInfo').textContent = 'No transactions found';
+      return;
+    }
+    
+    const transactions = JSON.parse(rawData);
+    document.getElementById('debugInfo').textContent = '✓ ' + transactions.length + ' transactions loaded';
+    
+    if (!Array.isArray(transactions) || transactions.length === 0) return;
+    
+    // Calculate totals
+    let totalIncome = 0, totalExpense = 0;
+    let expenseByLabel = {}, incomeByLabel = {};
+    let cashIncome = 0, cashExpense = 0, bankIncome = 0, bankExpense = 0;
+    
+    transactions.forEach(t => {
+      const amt = parseFloat(t.amount);
+      const account = normalizeAccount(t.account);
+      const isCash = /cash/i.test(account);
+      
+      if (t.type === 'income') {
+        totalIncome += amt;
+        incomeByLabel[t.label] = (incomeByLabel[t.label] || 0) + amt;
+        if (isCash) cashIncome += amt;
+        else bankIncome += amt;
+      } else if (t.type === 'expense') {
+        totalExpense += amt;
+        expenseByLabel[t.label] = (expenseByLabel[t.label] || 0) + amt;
+        if (isCash) cashExpense += amt;
+        else bankExpense += amt;
+      }
+    });
+    
+    // Update stat displays
+    document.getElementById('totalIncome').textContent = totalIncome.toFixed(2);
+    document.getElementById('totalExpense').textContent = totalExpense.toFixed(2);
+    document.getElementById('netBalance').textContent = (totalIncome - totalExpense).toFixed(2);
+    document.getElementById('cashIncome').textContent = cashIncome.toFixed(2);
+    document.getElementById('cashExpense').textContent = cashExpense.toFixed(2);
+    document.getElementById('bankIncome').textContent = bankIncome.toFixed(2);
+    document.getElementById('bankExpense').textContent = bankExpense.toFixed(2);
+    
+    // Create charts using utility functions
+    createIncomeExpenseChart('incomeExpenseChart', totalIncome, totalExpense);
+    createStackedBarChart('accountChart', ['Cash', 'Bank'], [cashIncome, bankIncome], [cashExpense, bankExpense], 'Income', 'Expense');
+    createDoughnutChart('expenseByLabelChart', Object.keys(expenseByLabel), Object.values(expenseByLabel), 'Expense by Label');
+    createDoughnutChart('incomeByLabelChart', Object.keys(incomeByLabel), Object.values(incomeByLabel), 'Income by Label');
+    
+    // Populate label select
+    const allLabels = [...new Set(transactions.map(t => t.label))].sort();
+    const labelSelect = document.getElementById('labelSelect');
+    labelSelect.innerHTML = '<option value="">-- Select a Label --</option>';
+    allLabels.forEach(label => {
+      const opt = document.createElement('option');
+      opt.value = label;
+      opt.textContent = label;
+      labelSelect.appendChild(opt);
+    });
+    
+  } catch (e) {
+    document.getElementById('debugInfo').textContent = 'Error: ' + e.message;
+    console.error(e);
+  }
+}
+
+function showLabelDetails() {
+  const rawData = localStorage.getItem('financeData');
+  if (!rawData) return;
+  
+  const transactions = JSON.parse(rawData);
+  const selectedLabel = document.getElementById('labelSelect').value;
+  const detailsContainer = document.getElementById('labelDetailsContainer');
+  
+  if (!selectedLabel) {
+    detailsContainer.style.display = 'none';
+    return;
+  }
+  
+  const labelTransactions = transactions.filter(t => t.label === selectedLabel);
+  const tbody = document.getElementById('labelDetailsBody');
+  tbody.innerHTML = '';
+  
+  let totalAmount = 0;
+  labelTransactions.forEach(t => {
+    const amount = parseFloat(t.amount);
+    totalAmount += amount;
+    
+    const row = document.createElement('tr');
+    row.style.borderBottom = '1px solid #eee';
+    row.innerHTML = `
+      <td style="padding: 10px;">${t.date}</td>
+      <td style="padding: 10px;"><strong>${t.type}</strong></td>
+      <td style="padding: 10px;">${t.account}</td>
+      <td style="padding: 10px; text-align: right;">$${amount.toFixed(2)}</td>
+    `;
+    tbody.appendChild(row);
+  });
+  
+  document.getElementById('labelTotal').textContent = totalAmount.toFixed(2);
+  detailsContainer.style.display = 'block';
+}
+
+function generateReport() {
+  const rawData = localStorage.getItem('financeData');
+  if (!rawData) return 'No transaction data found.';
+  
+  const transactions = JSON.parse(rawData);
+  let totalIncome = 0, totalExpense = 0, expenseByLabel = {}, incomeByLabel = {};
+  
+  transactions.forEach(t => {
+    const amt = parseFloat(t.amount);
+    if (t.type === 'income') {
+      totalIncome += amt;
+      incomeByLabel[t.label] = (incomeByLabel[t.label] || 0) + amt;
+    } else if (t.type === 'expense') {
+      totalExpense += amt;
+      expenseByLabel[t.label] = (expenseByLabel[t.label] || 0) + amt;
+    }
+  });
+  
+  const topExpenses = Object.entries(expenseByLabel)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([label, amt]) => `${label}: $${amt.toFixed(2)}`)
+    .join('; ') || '(no data)';
+  
+  const topIncomes = Object.entries(incomeByLabel)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([label, amt]) => `${label}: $${amt.toFixed(2)}`)
+    .join('; ') || '(no data)';
+  
+  const lines = [
+    'Finance Tracker Report',
+    `Generated: ${new Date().toLocaleString()}`,
+    '-------------------------------',
+    `Total Transactions: ${transactions.length}`,
+    `Total Income: $${totalIncome.toFixed(2)}`,
+    `Total Expense: $${totalExpense.toFixed(2)}`,
+    `Net Balance: $${(totalIncome - totalExpense).toFixed(2)}`,
+    '',
+    'Top Expense Categories:',
+    topExpenses,
+    '',
+    'Top Income Categories:',
+    topIncomes,
+    '',
+    'Notes: Add any context or highlights here before sending to your advisor.'
+  ];
+  
+  return lines.join('\n');
+}
+
+function showReport() {
+  document.getElementById('reportText').value = generateReport();
+  document.getElementById('reportModal').classList.add('show');
+}
+
+function closeReport() {
+  document.getElementById('reportModal').classList.remove('show');
+}
+
+function copyReport() {
+  const text = document.getElementById('reportText').value;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => alert('Report copied!'));
+  } else {
+    document.getElementById('reportText').select();
+    document.execCommand('copy');
+    alert('Report copied!');
+  }
+}
+
+// Initialize on load
+setTimeout(initCharts, 300);
+window.addEventListener('storage', () => initCharts());
+</script>
+
+</body>
+</html>

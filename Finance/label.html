@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Manage Labels - Finance Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial; padding: 20px; background:#f2f2f2; }
+    input, select, button { width:100%; padding:10px; margin:6px 0; }
+    .card { background:white; padding:15px; margin-top:15px; border-radius:10px; }
+    .label-section { margin-top: 20px; }
+    .label-list { list-style: none; padding: 0; }
+    .label-item { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      padding: 10px; 
+      background: #f9f9f9; 
+      margin: 5px 0; 
+      border-radius: 5px;
+      border-left: 4px solid #4CAF50;
+    }
+    .label-item.custom {
+      border-left-color: #ff9800;
+    }
+    .delete-label-btn {
+      background: #ff6b6b;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      width: auto;
+      margin: 0;
+    }
+    .default-badge {
+      background: #4CAF50;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+    .custom-badge {
+      background: #ff9800;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+    h3 { color: #333; margin-top: 20px; }
+    .back-btn {
+      background: #2196F3;
+      color: white;
+      margin-bottom: 20px;
+    }
+  </style>
+  <script src="storage.js"></script>
+</head>
+<body>
+
+<h2>Manage Labels</h2>
+<a href="index.html"><button class="back-btn">← Back to Tracker</button></a>
+
+<div class="card">
+  <h3>Add New Label</h3>
+  
+  <label for="labelType"><strong>Select Type:</strong></label>
+  <select id="labelType" onchange="updateLabelList()">
+    <option value="expense">Expense</option>
+    <option value="income">Income</option>
+    <option value="transfer">Transfer</option>
+    <option value="saving">Saving</option>
+  </select>
+
+  <input id="newLabelInput" type="text" placeholder="Enter label name">
+  <button onclick="addLabel()" style="background:#4CAF50; color:white;">+ Add Label</button>
+</div>
+
+<div class="card">
+  <h3 id="typeTitle">Expense Labels</h3>
+  <ul id="labelsList" class="label-list"></ul>
+</div>
+
+<script>
+function addLabel() {
+  const labelText = document.getElementById("newLabelInput").value.trim();
+  const labelType = document.getElementById("labelType").value;
+
+  if (!labelText) {
+    alert("Please enter a label name");
+    return;
+  }
+
+  if (!labelMap[labelType]) {
+    labelMap[labelType] = [];
+  }
+
+  const labelExists = labelMap[labelType].some(l => l.toLowerCase() === labelText.toLowerCase());
+
+  if (labelExists) {
+    alert("This label already exists!");
+    return;
+  }
+
+  labelMap[labelType].push(labelText);
+  saveLabelMap();
+  document.getElementById("newLabelInput").value = "";
+  updateLabelList();
+  alert("Label added successfully!");
+}
+
+function deleteLabel(type, labelName) {
+  const index = labelMap[type].indexOf(labelName);
+  if (index > -1) {
+    labelMap[type].splice(index, 1);
+    saveLabelMap();
+    updateLabelList();
+    alert("Label deleted!");
+  }
+}
+
+function isDefaultLabel(type, labelName) {
+  return defaultLabels[type] && defaultLabels[type].includes(labelName);
+}
+
+function updateLabelList() {
+  const labelType = document.getElementById("labelType").value;
+  const typeNames = {
+    expense: "Expense Labels",
+    income: "Income Labels",
+    transfer: "Transfer Labels",
+    saving: "Saving Labels"
+  };
+
+  document.getElementById("typeTitle").textContent = typeNames[labelType];
+  
+  const labels = labelMap[labelType] || [];
+  const labelsList = document.getElementById("labelsList");
+  labelsList.innerHTML = "";
+
+  labels.forEach(label => {
+    const isDefault = isDefaultLabel(labelType, label);
+    const li = document.createElement("li");
+    li.className = "label-item" + (isDefault ? "" : " custom");
+    
+    const labelContent = document.createElement("span");
+    labelContent.textContent = label;
+    
+    const badge = document.createElement("span");
+    badge.className = isDefault ? "default-badge" : "custom-badge";
+    badge.textContent = isDefault ? "Default" : "Custom";
+    
+    li.appendChild(labelContent);
+    li.appendChild(badge);
+
+    if (!isDefault) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "delete-label-btn";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.onclick = () => deleteLabel(labelType, label);
+      li.appendChild(deleteBtn);
+    }
+
+    labelsList.appendChild(li);
+  });
+}
+
+// Initialize on page load
+document.addEventListener("DOMContentLoaded", function() {
+  // reload latest labels (in case changed elsewhere)
+  const stored = localStorage.getItem("financeLabels");
+  if (stored) labelMap = JSON.parse(stored);
+  updateLabelList();
+});
+</script>
+
+</body>
+</html>
