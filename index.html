@@ -297,8 +297,10 @@
   <a href="pages/analytics/"><button class="btn btn-analytics">📊 Analytics</button></a>
   <a href="pages/labels.html"><button class="btn btn-labels">⚙ Manage Labels</button></a>
   <button id="syncToggleBtn" class="btn" style="background:#4CAF50; color:white;" onclick="toggleCloudSync()">☁️ Enable Cloud Sync</button>
-  <button class="btn" style="background:#2196F3; color:white;" onclick="showSyncIdDialog()">🔗 Sync Devices</button>
+  <button class="btn" style="background:#ff6b6b; color:white;" onclick="logoutUser()">🚪 Logout</button>
   </div>
+  
+  <div id="userInfo" style="text-align: center; margin: 10px 0; color: white; font-size: 14px;"></div>
   
   <div class="dashboard">
     <!-- Balance Cards -->
@@ -506,6 +508,37 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Check if user is logged in
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (window.firebaseAuth) {
+      window.firebaseOnAuthStateChanged(window.firebaseAuth, (user) => {
+        if (!user) {
+          // Not logged in, redirect to login page
+          window.location.href = 'login.html';
+        } else {
+          // Show user email
+          const userInfoDiv = document.getElementById('userInfo');
+          if (userInfoDiv) {
+            userInfoDiv.textContent = `👤 Logged in as: ${user.email}`;
+          }
+        }
+      });
+    }
+  }, 500);
+});
+
+// Logout function
+function logoutUser() {
+  if (confirm('Are you sure you want to logout?')) {
+    if (window.CloudSync) {
+      window.CloudSync.logout();
+    } else {
+      window.location.href = 'login.html';
+    }
+  }
+}
+
 // Cloud Sync Toggle
 function toggleCloudSync() {
   const btn = document.getElementById('syncToggleBtn');
@@ -524,43 +557,6 @@ function toggleCloudSync() {
     alert('Cloud sync enabled! Your data will sync across all devices. 🔄');
   } else {
     alert('Cloud sync not available. Firebase not loaded.');
-  }
-}
-
-// Show Sync ID Dialog
-function showSyncIdDialog() {
-  if (!window.CloudSync) {
-    alert('Cloud sync not available. Firebase not loaded.');
-    return;
-  }
-  
-  const userId = window.CloudSync.getUserId();
-  const choice = prompt(
-    '🔗 Sync Your Devices\n\n' +
-    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-    '📱 YOUR SYNC ID:\n' +
-    userId + '\n\n' +
-    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-    '✅ ID copied to clipboard!\n\n' +
-    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-    '📋 TO SYNC ANOTHER DEVICE:\n' +
-    '1. Copy the ID above\n' +
-    '2. Go to your other device\n' +
-    '3. Click "🔗 Sync Devices"\n' +
-    '4. Paste the ID below when asked\n' +
-    '5. Enable cloud sync on both devices\n\n' +
-    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-    'Or paste ID from another device here:'
-  );
-  
-  // Copy current ID to clipboard
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(userId).catch(() => {});
-  }
-  
-  // If user pasted an ID
-  if (choice && choice.trim() && choice !== userId) {
-    window.CloudSync.pasteId(choice.trim());
   }
 }
 

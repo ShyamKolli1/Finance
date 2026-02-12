@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes">
+  <meta name="format-detection" content="telephone=no">
+  <title>Login - Finance Tracker</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+    }
+    
+    .login-container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 420px;
+      animation: slideUp 0.4s ease;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .login-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .login-header h1 {
+      font-size: 28px;
+      margin: 10px 0;
+      color: #333;
+    }
+    
+    .login-header .icon {
+      font-size: 60px;
+      margin-bottom: 10px;
+    }
+    
+    .form-group {
+      margin-bottom: 24px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #555;
+      font-size: 14px;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 16px;
+      font-size: 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      transition: all 0.3s;
+      box-sizing: border-box;
+      min-height: 54px;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .btn-primary {
+      width: 100%;
+      padding: 16px;
+      font-size: 18px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+      min-height: 54px;
+      margin-top: 10px;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+    
+    .btn-secondary {
+      width: 100%;
+      padding: 16px;
+      font-size: 16px;
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 12px;
+      min-height: 54px;
+    }
+    
+    .btn-secondary:hover {
+      background: #f8f9ff;
+    }
+    
+    .divider {
+      text-align: center;
+      margin: 24px 0;
+      color: #999;
+      font-size: 14px;
+      position: relative;
+    }
+    
+    .divider::before,
+    .divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 40%;
+      height: 1px;
+      background: #e0e0e0;
+    }
+    
+    .divider::before {
+      left: 0;
+    }
+    
+    .divider::after {
+      right: 0;
+    }
+    
+    .error-message {
+      background: #ffe5e5;
+      color: #d32f2f;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    .success-message {
+      background: #e5f8e5;
+      color: #2e7d32;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    .info-text {
+      text-align: center;
+      color: #666;
+      font-size: 13px;
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+    
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 480px) {
+      .login-container {
+        padding: 30px 24px;
+      }
+      
+      .login-header h1 {
+        font-size: 24px;
+      }
+      
+      .login-header .icon {
+        font-size: 50px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <div class="login-header">
+      <div class="icon">💰</div>
+      <h1>Finance Tracker</h1>
+      <p style="color: #999; font-size: 14px;">Sign in to sync across all your devices</p>
+    </div>
+    
+    <div id="errorMessage" class="error-message"></div>
+    <div id="successMessage" class="success-message"></div>
+    <div id="loadingSpinner" class="loading">
+      <div class="spinner"></div>
+      <p style="margin-top: 10px; color: #667eea;">Please wait...</p>
+    </div>
+    
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="email">📧 Email</label>
+        <input type="email" id="email" placeholder="your@email.com" required autocomplete="email">
+      </div>
+      
+      <div class="form-group">
+        <label for="password">🔒 Password</label>
+        <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password" minlength="6">
+      </div>
+      
+      <button type="submit" class="btn-primary">🚀 Sign In</button>
+      
+      <div class="divider">or</div>
+      
+      <button type="button" class="btn-secondary" onclick="switchToSignup()">✨ Create New Account</button>
+    </form>
+    
+    <form id="signupForm" style="display: none;">
+      <div class="form-group">
+        <label for="signupEmail">📧 Email</label>
+        <input type="email" id="signupEmail" placeholder="your@email.com" required autocomplete="email">
+      </div>
+      
+      <div class="form-group">
+        <label for="signupPassword">🔒 Password</label>
+        <input type="password" id="signupPassword" placeholder="••••••••" required autocomplete="new-password" minlength="6">
+      </div>
+      
+      <div class="form-group">
+        <label for="confirmPassword">🔒 Confirm Password</label>
+        <input type="password" id="confirmPassword" placeholder="••••••••" required autocomplete="new-password" minlength="6">
+      </div>
+      
+      <button type="submit" class="btn-primary">✨ Create Account</button>
+      
+      <div class="divider">or</div>
+      
+      <button type="button" class="btn-secondary" onclick="switchToLogin()">🚀 Sign In Instead</button>
+    </form>
+    
+    <div class="info-text">
+      🔒 Your data is secure and encrypted<br>
+      ☁️ Automatically syncs across all devices<br>
+      💯 100% Free - No credit card needed
+    </div>
+  </div>
+
+  <script type="module">
+    // Import Firebase
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyB6D-f1jwcDwKspzZnzvaXdXalb2HEcELg",
+      authDomain: "finance-tracker-ac631.firebaseapp.com",
+      projectId: "finance-tracker-ac631",
+      storageBucket: "finance-tracker-ac631.firebasestorage.app",
+      messagingSenderId: "624852730505",
+      appId: "1:624852730505:web:4ec62d05cc9eb38e59bbaa"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    
+    // Check if already logged in
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User is logged in, redirect to main app
+        window.location.href = 'index.html';
+      }
+    });
+    
+    // Show/hide messages
+    function showError(message) {
+      const errorDiv = document.getElementById('errorMessage');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      setTimeout(() => {
+        errorDiv.style.display = 'none';
+      }, 5000);
+    }
+    
+    function showSuccess(message) {
+      const successDiv = document.getElementById('successMessage');
+      successDiv.textContent = message;
+      successDiv.style.display = 'block';
+      setTimeout(() => {
+        successDiv.style.display = 'none';
+      }, 3000);
+    }
+    
+    function showLoading(show) {
+      document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+      document.getElementById('loginForm').style.display = show ? 'none' : 'block';
+      document.getElementById('signupForm').style.display = 'none';
+    }
+    
+    // Login form
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      showLoading(true);
+      
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        showSuccess('✅ Login successful! Redirecting...');
+        // Redirect handled by onAuthStateChanged
+      } catch (error) {
+        showLoading(false);
+        
+        let errorMessage = 'Login failed. Please try again.';
+        if (error.code === 'auth/user-not-found') {
+          errorMessage = '❌ No account found with this email. Create one?';
+        } else if (error.code === 'auth/wrong-password') {
+          errorMessage = '❌ Incorrect password. Please try again.';
+        } else if (error.code === 'auth/invalid-email') {
+          errorMessage = '❌ Invalid email address.';
+        } else if (error.code === 'auth/too-many-requests') {
+          errorMessage = '❌ Too many attempts. Please try again later.';
+        }
+        
+        showError(errorMessage);
+      }
+    });
+    
+    // Signup form
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('signupEmail').value;
+      const password = document.getElementById('signupPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      
+      if (password !== confirmPassword) {
+        showError('❌ Passwords do not match!');
+        return;
+      }
+      
+      if (password.length < 6) {
+        showError('❌ Password must be at least 6 characters.');
+        return;
+      }
+      
+      showLoading(true);
+      
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
+        showSuccess('✅ Account created! Redirecting...');
+        // Redirect handled by onAuthStateChanged
+      } catch (error) {
+        showLoading(false);
+        
+        let errorMessage = 'Signup failed. Please try again.';
+        if (error.code === 'auth/email-already-in-use') {
+          errorMessage = '❌ This email is already registered. Sign in instead?';
+        } else if (error.code === 'auth/invalid-email') {
+          errorMessage = '❌ Invalid email address.';
+        } else if (error.code === 'auth/weak-password') {
+          errorMessage = '❌ Password is too weak. Use at least 6 characters.';
+        }
+        
+        showError(errorMessage);
+      }
+    });
+    
+    // Switch between login/signup
+    window.switchToSignup = () => {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('signupForm').style.display = 'block';
+      document.getElementById('errorMessage').style.display = 'none';
+    };
+    
+    window.switchToLogin = () => {
+      document.getElementById('signupForm').style.display = 'none';
+      document.getElementById('loginForm').style.display = 'block';
+      document.getElementById('errorMessage').style.display = 'none';
+    };
+  </script>
+
+</body>
+</html>

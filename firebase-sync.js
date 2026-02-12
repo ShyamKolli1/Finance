@@ -2,16 +2,22 @@
 // Syncs data between localStorage and Firebase Cloud
 
 const SYNC_ENABLED_KEY = 'firestoreSyncEnabled';
-const USER_ID_KEY = 'firebaseUserId';
 
-// Generate a unique user ID if one doesn't exist
+// Get current user ID from Firebase Auth
 function getUserId() {
-  let userId = localStorage.getItem(USER_ID_KEY);
-  if (!userId) {
-    userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem(USER_ID_KEY, userId);
+  if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+    console.warn('⚠️ No user logged in');
+    return null;
   }
-  return userId;
+  return window.firebaseAuth.currentUser.uid;
+}
+
+// Get user email
+function getUserEmail() {
+  if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+    return null;
+  }
+  return window.firebaseAuth.currentUser.email;
 }
 
 // Check if sync is enabled
@@ -34,10 +40,10 @@ function disableSync() {
 
 // Sync local data to cloud
 async function syncToCloud() {
-  if (!isSyncEnabled() || !window.firebaseDb) return;
+  const userId = getUserId();
+  if (!isSyncEnabled() || !window.firebaseDb || !userId) return;
   
   try {
-    const userId = getUserId();
     const financeData = localStorage.getItem('financeData');
     const financeLabels = localStorage.getItem('financeLabels');
     
@@ -65,10 +71,10 @@ async function syncToCloud() {
 
 // Sync cloud data to local
 async function syncFromCloud() {
-  if (!isSyncEnabled() || !window.firebaseDb) return;
+  const userId = getUserId();
+  if (!isSyncEnabled() || !window.firebaseDb || !userId) return;
   
   try {
-    const userId = getUserId();
     
     // Get transactions
     const dataRef = window.firebaseDoc(window.firebaseDb, 'users', userId, 'finance', 'transactions');
@@ -101,9 +107,8 @@ async function syncFromCloud() {
 
 // Real-time listener for cloud changes
 function setupRealtimeSync() {
-  if (!isSyncEnabled() || !window.firebaseDb) return;
-  
   const userId = getUserId();
+  if (!isSyncEnabled() || !window.firebaseDb || !userId) return;
   
   // Listen for transaction changes
   const dataRef = window.firebaseDoc(window.firebaseDb, 'users', userId, 'finance', 'transactions');
@@ -148,11 +153,31 @@ function setupRealtimeSync() {
 
 // Initialize sync on page load
 window.addEventListener('load', () => {
-  if (isSyncEnabled() && window.firebaseDb) {
-    syncFromCloud();
-    setupRealtimeSync();
+  if (window.firebaseAuth) {
+    window.firebaseOnAuthStateChanged(window.firebaseAuth, (user) => {
+      if (user && isSyncEnabled() && window.firebaseDb) {
+        console.log('👤 Logged in as:', user.email);
+        syncFromCloud();
+        setupRealtimeSync();
+      } else if (!user) {
+        console.log('👤 Not logged in');
+      }
+    });
   }
 });
+
+// Logout function
+async function logout() {
+  try {
+    await window.firebaseSignOut(window.firebaseAuth);
+    localStorage.setItem(SYNC_ENABLED_KEY, 'false');
+    console.log('👋 Logged out');
+    window.location.href = 'login.html';
+  } catch (error) {
+    console.error('Logout failed:', error);
+    alert('Logout failed. Please try again.');
+  }
+}
 
 // Auto-sync when data changes
 const originalSetItem = Storage.prototype.setItem;
@@ -165,61 +190,6 @@ Storage.prototype.setItem = function(key, value) {
   }
 };
 
-// Get sync code for sharing between devices
-function getSyncCode() {
-  const userId = getUserId();
-  const code = userId.replace('user_', '').substring(0, 8).toUpperCase();
-  return code;
-}
-
-// Set user ID from another device
-function setSyncCode(code) {
-  if (!code) {
-    alert('❌ Please enter a sync code');
-    return;
-  }
-  
-  // Convert code back to userId format
-  const userId = 'user_' + Date.now() + '_' + code.toLowerCase();
-  
-  // Store the new userId
-  localStorage.setItem(USER_ID_KEY, userId);
-  
-  alert('✅ Sync code set! Now enable cloud sync to connect devices.');
-  console.log('🔗 Sync code set:', code);
-}
-
-// Show sync code dialog
-function showSyncCode() {
-  const userId = getUserId();
-  const message = `📱 Your Sync ID:\n\n${userId}\n\n📋 Copy this ENTIRE ID and paste it on your other device using:\n\nCloudSync.pasteId("paste-here")`;
-  
-  // Copy to clipboard
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(userId);
-    alert(message + '\n\n✅ ID copied to clipboard!');
-  } else {
-    prompt('📋 Copy this ID to your other device:', userId);
-  }
-}
-
-// Paste ID from another device
-function pasteId(userId) {
-  if (!userId || !userId.startsWith('user_')) {
-    alert('❌ Invalid sync ID. It should start with "user_"');
-    return;
-  }
-  
-  // Store the userId
-  localStorage.setItem(USER_ID_KEY, userId);
-  
-  alert('✅ Sync ID set!\n\nNow click "☁️ Enable Cloud Sync" to download data from other device.');
-  console.log('🔗 Sync ID pasted:', userId);
-  
-  // Reload page to apply
-  location.reload();
-}
-
 // Export functions
 window.CloudSync = {
   enable: enableSync,
@@ -228,8 +198,8 @@ window.CloudSync = {
   syncToCloud: syncToCloud,
   syncFromCloud: syncFromCloud,
   getUserId: getUserId,
-  showSyncCode: showSyncCode,
-  pasteId: pasteId
+  getUserEmail: getUserEmail,
+  logout: logout
 };
 
 console.log('✅ Cloud Sync Manager loaded');
