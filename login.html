@@ -276,6 +276,12 @@
       ☁️ Automatically syncs across all devices<br>
       💯 100% Free - No credit card needed
     </div>
+    
+    <div style="margin-top: 20px; padding: 16px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 12px; color: #856404; font-size: 13px; line-height: 1.6;">
+      <strong>❓ Can't signup?</strong><br>
+      • Email already registered? Try <button onclick="switchToLogin()" style="background:none;border:none;color:#007bff;text-decoration:underline;cursor:pointer;font-size:13px;">signing in</button><br>
+      • Already logged in on this device? <button onclick="forceLogout()" style="background:none;border:none;color:#dc3545;text-decoration:underline;cursor:pointer;font-size:13px;font-weight:600;">Logout first</button>
+    </div>
   </div>
 
   <script type="module">
@@ -299,8 +305,51 @@
     // Check if already logged in
     onAuthStateChanged(auth, (user) => {
       if (user) {
-        // User is logged in, redirect to main app
-        window.location.href = 'index.html';
+        // User is logged in - show message before redirecting
+        const loginContainer = document.querySelector('.login-container');
+        if (loginContainer) {
+          loginContainer.innerHTML = `
+            <div class="login-header">
+              <div class="icon">✅</div>
+              <h1>Already Logged In!</h1>
+            </div>
+            <div style="background: #e3f2fd; padding: 20px; border-radius: 12px; margin: 20px 0; border: 2px solid #2196F3;">
+              <p style="font-size: 16px; margin-bottom: 10px; color: #1976d2; font-weight: 600;">
+                👤 Currently logged in as:
+              </p>
+              <p style="font-size: 14px; color: #333; word-break: break-all; background: white; padding: 10px; border-radius: 8px; margin: 10px 0;">
+                ${user.email}
+              </p>
+              <p style="font-size: 13px; color: #666; margin-top: 10px;">
+                User ID: ${user.uid.substring(0, 12)}...
+              </p>
+            </div>
+            <button onclick="window.location.href='index.html'" class="btn-primary">
+              ➡️ Go to Finance Tracker
+            </button>
+            <button onclick="forceLogout()" class="btn-secondary" style="margin-top: 10px; background: #ff6b6b; color: white; border-color: #ff6b6b;">
+              🚪 Logout & Create New Account
+            </button>
+            <div style="margin-top: 20px; font-size: 13px; color: #666; text-align: center;">
+              Redirecting in <span id="countdown">5</span> seconds...<br>
+              <button onclick="clearInterval(window.redirectTimer)" style="background: none; border: none; color: #2196F3; text-decoration: underline; cursor: pointer; margin-top: 8px;">Cancel auto-redirect</button>
+            </div>
+          `;
+          
+          // Auto-redirect after 5 seconds
+          let countdown = 5;
+          window.redirectTimer = setInterval(() => {
+            countdown--;
+            const countdownEl = document.getElementById('countdown');
+            if (countdownEl) {
+              countdownEl.textContent = countdown;
+            }
+            if (countdown <= 0) {
+              clearInterval(window.redirectTimer);
+              window.location.href = 'index.html';
+            }
+          }, 1000);
+        }
       }
     });
     
@@ -389,7 +438,22 @@
         
         let errorMessage = 'Signup failed. Please try again.';
         if (error.code === 'auth/email-already-in-use') {
-          errorMessage = '❌ This email is already registered. Sign in instead?';
+          errorMessage = 
+            '❌ This email is already registered!\n\n' +
+            'Options:\n' +
+            '1. Try signing IN instead (use existing password)\n' +
+            '2. Use a different email\n' +
+            '3. If this is your account but forgot password, contact support\n\n' +
+            'Want to sign in with this email?';
+          
+          // Show error with option to switch to login
+          showError('❌ Email already registered!');
+          setTimeout(() => {
+            if (window.confirm(errorMessage)) {
+              window.switchToLogin();
+            }
+          }, 500);
+          return;
         } else if (error.code === 'auth/invalid-email') {
           errorMessage = '❌ Invalid email address.';
         } else if (error.code === 'auth/weak-password') {
@@ -411,6 +475,40 @@
       document.getElementById('signupForm').style.display = 'none';
       document.getElementById('loginForm').style.display = 'block';
       document.getElementById('errorMessage').style.display = 'none';
+    };
+    
+    // Force logout - for when user is already logged in
+    window.forceLogout = async () => {
+      const confirm = window.confirm(
+        '🚪 FORCE LOGOUT\n\n' +
+        'This will:\n' +
+        '• Logout from this device\n' +
+        '• Clear all local data\n' +
+        '• Allow you to create new account\n\n' +
+        'Continue?'
+      );
+      
+      if (!confirm) return;
+      
+      try {
+        // Logout from Firebase
+        if (auth && auth.currentUser) {
+          await auth.signOut();
+        }
+        
+        // Clear all local storage
+        localStorage.clear();
+        
+        alert('✅ Logged out!\n\nYou can now create a new account or login with different email.');
+        
+        // Reload page
+        window.location.reload();
+      } catch (error) {
+        console.error('Logout error:', error);
+        // Force clear anyway
+        localStorage.clear();
+        window.location.reload();
+      }
     };
   </script>
 
