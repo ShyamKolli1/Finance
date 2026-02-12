@@ -3,9 +3,10 @@
 <head>
   <title>Finance Discipline Tracker</title>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover, user-scalable=yes">
   <meta name="theme-color" content="#667eea">
   <meta name="description" content="Track your income, expenses, and manage your finances easily">
+  <meta name="format-detection" content="telephone=no"
   
   <!-- iOS specific meta tags -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -123,35 +124,45 @@
     
     select, input {
       width: 100%;
-      padding: 12px;
+      padding: 16px;
       border: 2px solid #e0e0e0;
-      border-radius: 8px;
-      font-size: 14px;
+      border-radius: 10px;
+      font-size: 16px;
       transition: border-color 0.3s ease;
       font-family: inherit;
+      min-height: 52px;
+      -webkit-appearance: none;
+      appearance: none;
     }
     
     select:focus, input:focus {
       outline: none;
       border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
     }
     
     .button-group {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: 12px;
     }
     
     button {
-      padding: 12px;
+      padding: 16px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
       font-weight: 600;
-      transition: all 0.3s ease;
-      font-size: 14px;
+      transition: all 0.2s ease;
+      font-size: 16px;
       width: 100%;
+      min-height: 52px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    button:active {
+      transform: scale(0.98);
     }
     
     .btn-add { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; }
@@ -166,23 +177,29 @@
     
     .transaction-list {
       list-style: none;
-      max-height: 400px;
+      max-height: 500px;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
     
     .transaction-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 15px;
+      padding: 18px 16px;
       background: #f8f9fa;
-      margin-bottom: 10px;
-      border-radius: 8px;
+      margin-bottom: 12px;
+      border-radius: 12px;
       border-left: 4px solid #667eea;
-      transition: all 0.3s ease;
+      transition: all 0.2s ease;
+      touch-action: manipulation;
+      min-height: 72px;
     }
     
-    .transaction-item:hover { background: #f0f2f7; transform: translateX(5px); }
+    .transaction-item:active { 
+      background: #e8eaed; 
+      transform: scale(0.98);
+    }
     
     .transaction-item.expense { border-left-color: #FF6B6B; }
     .transaction-item.income { border-left-color: #4CAF50; }
@@ -193,14 +210,14 @@
       flex: 1;
     }
     
-    .transaction-date { font-size: 12px; color: #999; margin-bottom: 4px; }
-    .transaction-label { font-weight: 600; color: #333; font-size: 14px; }
+    .transaction-date { font-size: 13px; color: #999; margin-bottom: 6px; }
+    .transaction-label { font-weight: 600; color: #333; font-size: 15px; line-height: 1.4; }
     
     .transaction-amount {
       font-weight: bold;
-      font-size: 16px;
-      margin-right: 10px;
-      min-width: 80px;
+      font-size: 17px;
+      margin-right: 12px;
+      min-width: 90px;
       text-align: right;
     }
     
@@ -208,22 +225,30 @@
     .transaction-amount.income { color: #4CAF50; }
     
     .btn-delete {
-      background: transparent;
+      background: #ffe5e5;
       color: #ff6b6b;
-      padding: 6px 8px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 18px;
-      transition: all 0.3s ease;
-      min-width: auto;
-      width: auto;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 20px;
+      border: 2px solid transparent;
+      min-width: 48px;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      touch-action: manipulation;
     }
     
     .btn-delete:hover { 
-      background: #fff3f3;
-      transform: scale(1.2);
-      color: #ee5a52;
+      background: #ff6b6b; 
+      color: white;
+      border-color: #ff6b6b;
+    }
+    
+    .btn-delete:active {
+      transform: scale(0.95);
+      background: #e65252;
     }
     
     .empty-state {
@@ -232,15 +257,30 @@
       color: #999;
     }
     
-    .empty-state p { font-size: 14px; }
+    .empty-state p { font-size: 15px; }
     
     @media (max-width: 768px) {
       .dashboard { grid-template-columns: 1fr; }
-      .header h1 { font-size: 24px; }
-      .balance-grid { grid-template-columns: 1fr; }
+      .header h1 { font-size: 28px; }
+      .balance-grid { grid-template-columns: 1fr; gap: 12px; }
+      .balance-box { padding: 24px; }
+      .balance-box .amount { font-size: 32px; }
+      .form-group { margin-bottom: 18px; }
+      .button-group { gap: 14px; }
+      .transaction-item { padding: 20px 16px; }
+      .transaction-amount { font-size: 18px; min-width: 95px; }
+      .btn-delete { font-size: 22px; min-width: 52px; min-height: 52px; }
     }
     
-    ::-webkit-scrollbar { width: 6px; }
+    @media (max-width: 480px) {
+      .header h1 { font-size: 24px; }
+      .balance-box { padding: 20px; }
+      .balance-box .amount { font-size: 28px; }
+      .transaction-list { max-height: 450px; }
+      .button-group { grid-template-columns: 1fr; gap: 12px; }
+    }
+    
+    ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
     ::-webkit-scrollbar-thumb { background: #667eea; border-radius: 10px; }
     ::-webkit-scrollbar-thumb:hover { background: #764ba2; }

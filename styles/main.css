@@ -10,17 +10,22 @@ body {
 }
 
 button {
-  padding: 10px 20px;
+  padding: 14px 24px;
   margin: 10px 5px 10px 0;
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   transition: all 0.3s ease;
+  min-height: 48px;
+  min-width: 48px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
+button:active { transform: scale(0.98); }
 
 .btn-back { background: #2196F3; color: white; }
 .btn-primary { background: #4CAF50; color: white; }
@@ -32,14 +37,16 @@ button:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.
 
 .card {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 25px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
   transition: all 0.3s ease;
   margin-bottom: 20px;
+  touch-action: manipulation;
 }
 
 .card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
+.card:active { transform: scale(0.995); }
 
 h1 { font-size: 32px; margin-bottom: 15px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
 h2 { color: #333; font-size: 28px; margin-bottom: 20px; }
@@ -48,19 +55,23 @@ h4 { color: #555; font-size: 16px; margin-bottom: 10px; }
 
 select, input {
   width: 100%;
-  padding: 12px;
+  padding: 16px;
   border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 16px;
   transition: border-color 0.3s ease;
   font-family: inherit;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  min-height: 48px;
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: manipulation;
 }
 
 select:focus, input:focus {
   outline: none;
   border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
 }
 
 label {
@@ -229,47 +240,126 @@ table tr:hover { background: #f9f9f9; }
   text-decoration: none;
 }
 
+/* Mobile-specific enhancements */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+a, button, input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Better scrolling on mobile */
+body, .modal {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Smooth transitions for mobile interactions */
+button, .card, input, select {
+  transition: all 0.2s ease-out;
+}
+
+/* Prevent zoom on input focus (iOS) */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Better touch feedback */
+button:active,
+.card:active,
+a:active {
+  opacity: 0.8;
+}
+
+/* Loading spinner for async operations */
+.loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255,255,255,.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Pull to refresh visual feedback */
+.pull-refresh {
+  text-align: center;
+  padding: 10px;
+  color: #667eea;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
 @media (max-width: 768px) {
   body { 
-    padding: 10px; 
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    padding: 12px; 
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
   }
   
   .card { 
-    padding: 15px; 
-    margin-bottom: 15px;
+    padding: 20px; 
+    margin-bottom: 16px;
+    border-radius: 12px;
   }
   
   .chart-grid { 
     grid-template-columns: 1fr; 
+    gap: 16px;
   }
   
   h1 { 
-    font-size: 24px; 
+    font-size: 28px;
+    line-height: 1.2;
   }
   
   h2 { 
-    font-size: 20px; 
+    font-size: 22px;
+    margin-bottom: 16px;
+  }
+  
+  h3 {
+    font-size: 18px;
+    margin-bottom: 12px;
   }
   
   button {
-    padding: 12px 16px;
+    padding: 16px 20px;
     font-size: 16px;
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 52px;
+    width: 100%;
+    margin: 8px 0;
   }
   
   select, input {
-    padding: 14px;
+    padding: 18px 16px;
     font-size: 16px;
-    min-height: 44px;
+    min-height: 52px;
+    border-radius: 12px;
   }
   
   .top-nav {
     flex-direction: column;
+    gap: 12px;
   }
   
   .top-nav a {
@@ -278,61 +368,113 @@ table tr:hover { background: #f9f9f9; }
   
   .top-nav button {
     width: 100%;
+    margin: 0;
   }
   
   table {
-    font-size: 13px;
+    font-size: 14px;
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   
   table th, table td {
-    padding: 8px;
+    padding: 12px 8px;
+    white-space: nowrap;
+  }
+  
+  .modal-content {
+    width: 96%;
+    padding: 24px;
+    max-height: 92vh;
+    border-radius: 12px;
+  }
+  
+  .modal-close {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px;
+    font-size: 24px;
+  }
+  
+  label {
+    font-size: 15px;
+    margin-bottom: 10px;
   }
 }
 
 @media (max-width: 480px) {
   body { 
-    padding: 8px;
+    padding: 10px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
   }
   
   .card { 
-    padding: 12px;
-    border-radius: 8px;
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 12px;
   }
   
   h1 { 
-    font-size: 20px;
-    margin-bottom: 10px;
+    font-size: 24px;
+    margin-bottom: 12px;
   }
   
   h2 { 
-    font-size: 18px;
-    margin-bottom: 15px;
+    font-size: 20px;
+    margin-bottom: 12px;
   }
   
   h3, h4 {
-    font-size: 14px;
+    font-size: 16px;
+    margin-bottom: 10px;
   }
   
   button {
-    padding: 12px 14px;
-    margin: 8px 4px 8px 0;
-    font-size: 14px;
+    padding: 18px 16px;
+    margin: 6px 0;
+    font-size: 15px;
+    min-height: 54px;
+    border-radius: 12px;
+  }
+  
+  select, input {
+    padding: 18px;
+    font-size: 16px;
+    min-height: 54px;
   }
   
   label {
-    font-size: 13px;
+    font-size: 15px;
+    font-weight: 600;
   }
   
   .stats-grid {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 12px;
   }
   
   table {
-    font-size: 12px;
+    font-size: 13px;
   }
   
   table th, table td {
-    padding: 6px;
+    padding: 10px 6px;
+    font-size: 13px;
+  }
+  
+  .chart-container {
+    height: 280px !important;
+  }
+  
+  .modal-content {
+    padding: 20px;
+    width: 98%;
+  }
+  
+  .zoom-icon {
+    padding: 8px 12px;
+    font-size: 14px;
   }
 }
