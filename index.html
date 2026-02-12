@@ -58,11 +58,31 @@
           loadingDiv.style.display = 'none';
         }
         
-        // Show user email
+        // Show user email and ID
         const userInfoDiv = document.getElementById('userInfo');
         if (userInfoDiv) {
-          userInfoDiv.textContent = `👤 ${user.email}`;
+          const userId = user.uid.substring(0, 8);
+          userInfoDiv.innerHTML = `👤 ${user.email} <span style="font-size:11px; opacity:0.8;">(ID: ${userId})</span>`;
         }
+        
+        // Update user dropdown
+        const userEmailShort = document.getElementById('userEmailShort');
+        const userEmailFull = document.getElementById('userEmailFull');
+        if (userEmailShort) {
+          const emailParts = user.email.split('@');
+          userEmailShort.textContent = emailParts[0].substring(0, 8) + (emailParts[0].length > 8 ? '...' : '');
+        }
+        if (userEmailFull) {
+          userEmailFull.textContent = user.email;
+        }
+        
+        // Log detailed user info
+        console.log('═══════════════════════════════════════');
+        console.log('🔐 USER LOGIN DETAILS:');
+        console.log('📧 Email:', user.email);
+        console.log('🆔 User ID:', user.uid);
+        console.log('⚠️ IMPORTANT: You must use the SAME email on all devices!');
+        console.log('═══════════════════════════════════════');
         
         // Auto-enable cloud sync for ALL logged in users
         setTimeout(() => {
@@ -78,6 +98,7 @@
             }
             
             console.log('✅ Cloud sync auto-enabled for ' + user.email);
+            console.log('🔄 Syncing with cloud database path: /users/' + user.uid + '/finance/');
           }
         }, 2000);
       }
@@ -175,6 +196,99 @@
     }
     
     .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
+    
+    /* User Profile Dropdown */
+    .user-profile {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .user-profile-btn {
+      background: rgba(255,255,255,0.2);
+      color: white;
+      padding: 10px 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s;
+    }
+    
+    .user-profile-btn:hover {
+      background: rgba(255,255,255,0.3);
+      border-color: rgba(255,255,255,0.5);
+    }
+    
+    .user-dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 10px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      min-width: 200px;
+      z-index: 1000;
+      overflow: hidden;
+    }
+    
+    .user-dropdown.show {
+      display: block;
+      animation: slideDown 0.2s ease;
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .user-dropdown-item {
+      padding: 12px 16px;
+      color: #333;
+      text-decoration: none;
+      display: block;
+      transition: background 0.2s;
+      cursor: pointer;
+      border: none;
+      width: 100%;
+      text-align: left;
+      font-size: 14px;
+      background: white;
+    }
+    
+    .user-dropdown-item:hover {
+      background: #f5f5f5;
+    }
+    
+    .user-dropdown-item.logout {
+      color: #ff6b6b;
+      border-top: 1px solid #eee;
+    }
+    
+    .user-dropdown-header {
+      padding: 12px 16px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #eee;
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .user-dropdown-header strong {
+      display: block;
+      color: #333;
+      font-size: 14px;
+      margin-top: 4px;
+    }
     
     .btn-analytics { background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); }
     .btn-labels { background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); }
@@ -378,6 +492,11 @@
       .transaction-item { padding: 20px 16px; }
       .transaction-amount { font-size: 18px; min-width: 95px; }
       .btn-delete { font-size: 22px; min-width: 52px; min-height: 52px; }
+      
+      /* User profile on mobile */
+      .top-buttons { gap: 8px; }
+      .user-profile-btn { padding: 12px 14px; font-size: 15px; }
+      .user-dropdown { right: 0; min-width: 220px; }
     }
     
     @media (max-width: 480px) {
@@ -386,6 +505,12 @@
       .balance-box .amount { font-size: 28px; }
       .transaction-list { max-height: 450px; }
       .button-group { grid-template-columns: 1fr; gap: 12px; }
+      
+      /* Stack buttons vertically on small phones */
+      .top-buttons { flex-direction: column; }
+      .top-buttons .btn, .user-profile { width: 100%; }
+      .user-profile-btn { width: 100%; justify-content: center; padding: 14px; }
+      .user-dropdown { width: 100%; right: auto; left: 0; }
     }
     
     ::-webkit-scrollbar { width: 8px; }
@@ -411,7 +536,25 @@
   <a href="pages/analytics/"><button class="btn btn-analytics">📊 Analytics</button></a>
   <a href="pages/labels.html"><button class="btn btn-labels">⚙ Manage Labels</button></a>
   <button id="syncToggleBtn" class="btn" style="background:#4CAF50; color:white;" onclick="toggleCloudSync()">☁️ Enable Cloud Sync</button>
-  <button class="btn" style="background:#ff6b6b; color:white;" onclick="logoutUser()">🚪 Logout</button>
+  <button class="btn" style="background:#2196F3; color:white;" onclick="testSync()">🔄 Test Sync</button>
+  
+  <!-- User Profile Dropdown -->
+  <div class="user-profile">
+    <button class="user-profile-btn" onclick="toggleUserDropdown()">
+      <span>👤</span>
+      <span id="userEmailShort">Account</span>
+      <span style="font-size: 10px;">▼</span>
+    </button>
+    <div id="userDropdown" class="user-dropdown">
+      <div class="user-dropdown-header">
+        <div>Logged in as</div>
+        <strong id="userEmailFull">Loading...</strong>
+      </div>
+      <button class="user-dropdown-item" onclick="testSync()">🔄 Test Sync</button>
+      <button class="user-dropdown-item" onclick="showAccountInfo()">ℹ️ Account Info</button>
+      <button class="user-dropdown-item logout" onclick="logoutUser()">🚪 Logout</button>
+    </div>
+  </div>
   </div>
   
   <div id="userInfo" style="text-align: center; margin: 10px 0; color: white; font-size: 14px;"></div>
@@ -643,6 +786,90 @@ function logoutUser() {
       window.location.href = 'login.html';
     }
   }
+}
+
+// Test Sync - Force sync and show details
+async function testSync() {
+  if (!window.CloudSync) {
+    alert('❌ Cloud sync not available');
+    return;
+  }
+  
+  const userId = window.CloudSync.getUserId();
+  const email = window.CloudSync.getUserEmail();
+  
+  console.log('═══════════════════════════════════════');
+  console.log('🧪 TESTING CLOUD SYNC');
+  console.log('📧 Your Email:', email);
+  console.log('🆔 Your User ID:', userId);
+  console.log('📍 Cloud Path: /users/' + userId + '/finance/');
+  console.log('═══════════════════════════════════════');
+  
+  // Show current local data
+  const localData = localStorage.getItem('financeData');
+  const transactions = localData ? JSON.parse(localData) : [];
+  console.log('💾 Local Transactions:', transactions.length);
+  
+  // Force upload to cloud
+  alert('⬆️ Uploading data to cloud...');
+  await window.CloudSync.syncToCloud();
+  
+  // Force download from cloud
+  alert('⬇️ Downloading data from cloud...');
+  await window.CloudSync.syncFromCloud();
+  
+  // Show result
+  const newLocalData = localStorage.getItem('financeData');
+  const newTransactions = newLocalData ? JSON.parse(newLocalData) : [];
+  
+  console.log('✅ Sync Complete!');
+  console.log('📊 Transactions after sync:', newTransactions.length);
+  console.log('═══════════════════════════════════════');
+  
+  alert(`✅ Sync Test Complete!\n\n📧 Account: ${email}\n🆔 User ID: ${userId.substring(0, 12)}...\n📊 Transactions: ${newTransactions.length}\n\n⚠️ On other device, logout and login with:\n${email}\n\nThen data will sync!`);
+}
+
+// Toggle user dropdown
+function toggleUserDropdown() {
+  const dropdown = document.getElementById('userDropdown');
+  dropdown.classList.toggle('show');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+  const userProfile = event.target.closest('.user-profile');
+  const dropdown = document.getElementById('userDropdown');
+  
+  if (!userProfile && dropdown && dropdown.classList.contains('show')) {
+    dropdown.classList.remove('show');
+  }
+});
+
+// Show account info
+function showAccountInfo() {
+  if (!window.CloudSync) {
+    alert('❌ Cloud sync not available');
+    return;
+  }
+  
+  const userId = window.CloudSync.getUserId();
+  const email = window.CloudSync.getUserEmail();
+  const syncEnabled = window.CloudSync.isEnabled();
+  
+  const localData = localStorage.getItem('financeData');
+  const transactions = localData ? JSON.parse(localData) : [];
+  
+  alert(
+    `📋 ACCOUNT INFORMATION\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `📧 Email:\n${email}\n\n` +
+    `🆔 User ID:\n${userId}\n\n` +
+    `☁️ Cloud Sync: ${syncEnabled ? '✅ Enabled' : '❌ Disabled'}\n\n` +
+    `📊 Transactions: ${transactions.length}\n\n` +
+    `📍 Cloud Path:\n/users/${userId}/finance/\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `⚠️ Use this SAME email on all devices to sync data!`
+  );
 }
 
 // Cloud Sync Toggle

@@ -6,10 +6,12 @@ const SYNC_ENABLED_KEY = 'firestoreSyncEnabled';
 // Get current user ID from Firebase Auth
 function getUserId() {
   if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
-    console.warn('⚠️ No user logged in');
+    console.warn('⚠️ No user logged in - cannot get user ID');
     return null;
   }
-  return window.firebaseAuth.currentUser.uid;
+  const uid = window.firebaseAuth.currentUser.uid;
+  console.log('🆔 Current User ID:', uid);
+  return uid;
 }
 
 // Get user email
@@ -199,15 +201,23 @@ window.addEventListener('load', () => {
   if (window.firebaseAuth) {
     window.firebaseOnAuthStateChanged(window.firebaseAuth, (user) => {
       if (user && window.firebaseDb) {
+        console.log('═══════════════════════════════════════');
         console.log('👤 Logged in as:', user.email);
+        console.log('🆔 User ID:', user.uid);
+        console.log('📍 Cloud Storage Path: /users/' + user.uid + '/finance/');
+        console.log('⚠️ SYNC REQUIREMENT: Use this SAME email on all devices!');
+        console.log('═══════════════════════════════════════');
         
         // Auto-enable sync for logged in users
         if (!isSyncEnabled()) {
           localStorage.setItem(SYNC_ENABLED_KEY, 'true');
+          console.log('✅ Auto-enabled cloud sync');
         }
         
         if (isSyncEnabled()) {
+          console.log('📥 Downloading data from cloud...');
           syncFromCloud();
+          console.log('📡 Setting up real-time sync...');
           setupRealtimeSync();
         }
       } else if (!user) {
