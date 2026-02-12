@@ -297,6 +297,7 @@
   <a href="pages/analytics/"><button class="btn btn-analytics">📊 Analytics</button></a>
   <a href="pages/labels.html"><button class="btn btn-labels">⚙ Manage Labels</button></a>
   <button id="syncToggleBtn" class="btn" style="background:#4CAF50; color:white;" onclick="toggleCloudSync()">☁️ Enable Cloud Sync</button>
+  <button class="btn" style="background:#2196F3; color:white;" onclick="showSyncIdDialog()">🔗 Sync Devices</button>
   </div>
   
   <div class="dashboard">
@@ -523,6 +524,43 @@ function toggleCloudSync() {
     alert('Cloud sync enabled! Your data will sync across all devices. 🔄');
   } else {
     alert('Cloud sync not available. Firebase not loaded.');
+  }
+}
+
+// Show Sync ID Dialog
+function showSyncIdDialog() {
+  if (!window.CloudSync) {
+    alert('Cloud sync not available. Firebase not loaded.');
+    return;
+  }
+  
+  const userId = window.CloudSync.getUserId();
+  const choice = prompt(
+    '🔗 Sync Your Devices\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    '📱 YOUR SYNC ID:\n' +
+    userId + '\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    '✅ ID copied to clipboard!\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    '📋 TO SYNC ANOTHER DEVICE:\n' +
+    '1. Copy the ID above\n' +
+    '2. Go to your other device\n' +
+    '3. Click "🔗 Sync Devices"\n' +
+    '4. Paste the ID below when asked\n' +
+    '5. Enable cloud sync on both devices\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    'Or paste ID from another device here:'
+  );
+  
+  // Copy current ID to clipboard
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(userId).catch(() => {});
+  }
+  
+  // If user pasted an ID
+  if (choice && choice.trim() && choice !== userId) {
+    window.CloudSync.pasteId(choice.trim());
   }
 }
 

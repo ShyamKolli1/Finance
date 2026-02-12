@@ -165,6 +165,61 @@ Storage.prototype.setItem = function(key, value) {
   }
 };
 
+// Get sync code for sharing between devices
+function getSyncCode() {
+  const userId = getUserId();
+  const code = userId.replace('user_', '').substring(0, 8).toUpperCase();
+  return code;
+}
+
+// Set user ID from another device
+function setSyncCode(code) {
+  if (!code) {
+    alert('❌ Please enter a sync code');
+    return;
+  }
+  
+  // Convert code back to userId format
+  const userId = 'user_' + Date.now() + '_' + code.toLowerCase();
+  
+  // Store the new userId
+  localStorage.setItem(USER_ID_KEY, userId);
+  
+  alert('✅ Sync code set! Now enable cloud sync to connect devices.');
+  console.log('🔗 Sync code set:', code);
+}
+
+// Show sync code dialog
+function showSyncCode() {
+  const userId = getUserId();
+  const message = `📱 Your Sync ID:\n\n${userId}\n\n📋 Copy this ENTIRE ID and paste it on your other device using:\n\nCloudSync.pasteId("paste-here")`;
+  
+  // Copy to clipboard
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(userId);
+    alert(message + '\n\n✅ ID copied to clipboard!');
+  } else {
+    prompt('📋 Copy this ID to your other device:', userId);
+  }
+}
+
+// Paste ID from another device
+function pasteId(userId) {
+  if (!userId || !userId.startsWith('user_')) {
+    alert('❌ Invalid sync ID. It should start with "user_"');
+    return;
+  }
+  
+  // Store the userId
+  localStorage.setItem(USER_ID_KEY, userId);
+  
+  alert('✅ Sync ID set!\n\nNow click "☁️ Enable Cloud Sync" to download data from other device.');
+  console.log('🔗 Sync ID pasted:', userId);
+  
+  // Reload page to apply
+  location.reload();
+}
+
 // Export functions
 window.CloudSync = {
   enable: enableSync,
@@ -172,7 +227,9 @@ window.CloudSync = {
   isEnabled: isSyncEnabled,
   syncToCloud: syncToCloud,
   syncFromCloud: syncFromCloud,
-  getUserId: getUserId
+  getUserId: getUserId,
+  showSyncCode: showSyncCode,
+  pasteId: pasteId
 };
 
 console.log('✅ Cloud Sync Manager loaded');
