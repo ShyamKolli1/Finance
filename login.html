@@ -436,6 +436,14 @@
       } catch (error) {
         showLoading(false);
         
+        // Log full error to console for debugging
+        console.error('🔴 SIGNUP ERROR:', {
+          code: error.code,
+          message: error.message,
+          email: email,
+          passwordLength: password.length
+        });
+        
         let errorMessage = 'Signup failed. Please try again.';
         if (error.code === 'auth/email-already-in-use') {
           errorMessage = 
@@ -460,6 +468,8 @@
           errorMessage = '❌ Password is too weak. Use at least 6 characters.';
         }
         
+        // Show detailed error for unknown issues
+        errorMessage = `❌ ${errorMessage}\n\n🔍 Error Code: ${error.code}`;
         showError(errorMessage);
       }
     });
