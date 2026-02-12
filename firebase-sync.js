@@ -29,7 +29,12 @@ function isSyncEnabled() {
 function enableSync() {
   localStorage.setItem(SYNC_ENABLED_KEY, 'true');
   console.log('✅ Cloud sync enabled');
+  
+  // Sync to cloud immediately
   syncToCloud();
+  
+  // Setup real-time listeners
+  setupRealtimeSync();
 }
 
 // Disable cloud sync
@@ -41,18 +46,25 @@ function disableSync() {
 // Sync local data to cloud
 async function syncToCloud() {
   const userId = getUserId();
-  if (!isSyncEnabled() || !window.firebaseDb || !userId) return;
+  if (!isSyncEnabled() || !window.firebaseDb || !userId) {
+    console.warn('⚠️ Cannot sync to cloud:', { enabled: isSyncEnabled(), db: !!window.firebaseDb, userId });
+    return;
+  }
   
   try {
     const financeData = localStorage.getItem('financeData');
     const financeLabels = localStorage.getItem('financeLabels');
     
+    console.log('☁️ Syncing to cloud for user:', userId);
+    
     if (financeData) {
       const dataRef = window.firebaseDoc(window.firebaseDb, 'users', userId, 'finance', 'transactions');
       await window.firebaseSetDoc(dataRef, {
         data: financeData,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        deviceInfo: navigator.userAgent.substring(0, 100)
       }, { merge: true });
+      console.log('✅ Transactions synced to cloud');
     }
     
     if (financeLabels) {
@@ -61,20 +73,26 @@ async function syncToCloud() {
         data: financeLabels,
         lastUpdated: new Date().toISOString()
       }, { merge: true });
+      console.log('✅ Labels synced to cloud');
     }
     
-    console.log('☁️ Data synced to cloud');
+    console.log('☁️ ✅ Data synced to cloud successfully');
   } catch (error) {
-    console.error('Sync to cloud failed:', error);
+    console.error('❌ Sync to cloud failed:', error);
+    console.error('Error details:', error.message, error.code);
   }
 }
 
 // Sync cloud data to local
 async function syncFromCloud() {
   const userId = getUserId();
-  if (!isSyncEnabled() || !window.firebaseDb || !userId) return;
+  if (!isSyncEnabled() || !window.firebaseDb || !userId) {
+    console.warn('⚠️ Cannot sync from cloud:', { enabled: isSyncEnabled(), db: !!window.firebaseDb, userId });
+    return;
+  }
   
   try {
+    console.log('📥 Syncing from cloud for user:', userId);
     
     // Get transactions
     const dataRef = window.firebaseDoc(window.firebaseDb, 'users', userId, 'finance', 'transactions');
@@ -83,7 +101,9 @@ async function syncFromCloud() {
     if (dataSnap.exists()) {
       const cloudData = dataSnap.data().data;
       localStorage.setItem('financeData', cloudData);
-      console.log('☁️ Transactions synced from cloud');
+      console.log('✅ Transactions synced from cloud');
+    } else {
+      console.log('ℹ️ No transactions in cloud yet');
     }
     
     // Get labels
@@ -93,22 +113,31 @@ async function syncFromCloud() {
     if (labelsSnap.exists()) {
       const cloudLabels = labelsSnap.data().data;
       localStorage.setItem('financeLabels', cloudLabels);
-      console.log('☁️ Labels synced from cloud');
+      console.log('✅ Labels synced from cloud');
+    } else {
+      console.log('ℹ️ No labels in cloud yet');
     }
     
     // Reload the page data
     if (typeof loadData === 'function') loadData();
     if (typeof render === 'function') render();
     
+    console.log('📥 ✅ Cloud data synced successfully');
   } catch (error) {
-    console.error('Sync from cloud failed:', error);
+    console.error('❌ Sync from cloud failed:', error);
+    console.error('Error details:', error.message, error.code);
   }
 }
 
 // Real-time listener for cloud changes
 function setupRealtimeSync() {
   const userId = getUserId();
-  if (!isSyncEnabled() || !window.firebaseDb || !userId) return;
+  if (!isSyncEnabled() || !window.firebaseDb || !userId) {
+    console.warn('⚠️ Cannot setup real-time sync:', { enabled: isSyncEnabled(), db: !!window.firebaseDb, userId });
+    return;
+  }
+  
+  console.log('📡 Setting up real-time sync for user:', userId);
   
   // Listen for transaction changes
   const dataRef = window.firebaseDoc(window.firebaseDb, 'users', userId, 'finance', 'transactions');
@@ -119,7 +148,12 @@ function setupRealtimeSync() {
       
       // Only update if cloud data is different
       if (cloudData !== localData) {
+        // Temporarily disable auto-sync to avoid loop
+        const originalSetItem = localStorage.setItem;
+        localStorage.setItem = Storage.prototype.setItem.__original || Storage.prototype.setItem;
         localStorage.setItem('financeData', cloudData);
+        localStorage.setItem = originalSetItem;
+        
         console.log('🔄 Real-time update: Transactions updated from cloud');
         
         // Reload the page data
@@ -128,6 +162,8 @@ function setupRealtimeSync() {
         if (typeof initCharts === 'function') initCharts();
       }
     }
+  }, (error) => {
+    console.error('Real-time sync error (transactions):', error);
   });
   
   // Listen for label changes
@@ -139,13 +175,20 @@ function setupRealtimeSync() {
       
       // Only update if cloud data is different
       if (cloudLabels !== localLabels) {
+        // Temporarily disable auto-sync to avoid loop
+        const originalSetItem = localStorage.setItem;
+        localStorage.setItem = Storage.prototype.setItem.__original || Storage.prototype.setItem;
         localStorage.setItem('financeLabels', cloudLabels);
+        localStorage.setItem = originalSetItem;
+        
         console.log('🔄 Real-time update: Labels updated from cloud');
         
         // Reload labels
         if (typeof updateLabels === 'function') updateLabels();
       }
     }
+  }, (error) => {
+    console.error('Real-time sync error (labels):', error);
   });
   
   console.log('👂 Real-time sync listener active');
@@ -155,10 +198,18 @@ function setupRealtimeSync() {
 window.addEventListener('load', () => {
   if (window.firebaseAuth) {
     window.firebaseOnAuthStateChanged(window.firebaseAuth, (user) => {
-      if (user && isSyncEnabled() && window.firebaseDb) {
+      if (user && window.firebaseDb) {
         console.log('👤 Logged in as:', user.email);
-        syncFromCloud();
-        setupRealtimeSync();
+        
+        // Auto-enable sync for logged in users
+        if (!isSyncEnabled()) {
+          localStorage.setItem(SYNC_ENABLED_KEY, 'true');
+        }
+        
+        if (isSyncEnabled()) {
+          syncFromCloud();
+          setupRealtimeSync();
+        }
       } else if (!user) {
         console.log('👤 Not logged in');
       }
@@ -181,12 +232,15 @@ async function logout() {
 
 // Auto-sync when data changes
 const originalSetItem = Storage.prototype.setItem;
+Storage.prototype.setItem.__original = originalSetItem;
+
 Storage.prototype.setItem = function(key, value) {
   originalSetItem.call(this, key, value);
   
   // Sync to cloud when finance data changes
   if ((key === 'financeData' || key === 'financeLabels') && isSyncEnabled()) {
-    syncToCloud();
+    console.log('💾 Local data changed, syncing to cloud...', key);
+    setTimeout(() => syncToCloud(), 100); // Small delay to batch updates
   }
 };
 

@@ -21,32 +21,67 @@
   <script type="module" src="firebase-config.js"></script>
   <script type="module" src="firebase-sync.js"></script>
   
+  <!-- Block page render until auth checked -->
+  <script>
+    // Hide body content immediately
+    document.addEventListener('DOMContentLoaded', () => {
+      const authLoading = document.getElementById('authLoading');
+      if (authLoading) authLoading.style.display = 'flex';
+    });
+  </script>
+  
   <!-- Auth Check - Redirect if not logged in -->
   <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     
-    // Wait for Firebase to initialize
-    const checkAuth = () => {
-      if (window.firebaseAuth) {
-        onAuthStateChanged(window.firebaseAuth, (user) => {
-          const loadingDiv = document.getElementById('authLoading');
-          
-          if (!user) {
-            // Not logged in - redirect to login page
-            window.location.href = 'login.html';
-          } else {
-            // Logged in - hide loading overlay and show main content
-            if (loadingDiv) {
-              loadingDiv.style.display = 'none';
-            }
-          }
-        });
-      } else {
-        setTimeout(checkAuth, 100);
-      }
+    const firebaseConfig = {
+      apiKey: "AIzaSyB6D-f1jwcDwKspzZnzvaXdXalb2HEcELg",
+      authDomain: "finance-tracker-ac631.firebaseapp.com",
+      projectId: "finance-tracker-ac631"
     };
     
-    checkAuth();
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    
+    // Check auth immediately
+    onAuthStateChanged(auth, (user) => {
+      const loadingDiv = document.getElementById('authLoading');
+      
+      if (!user) {
+        // Not logged in - redirect to login page
+        window.location.replace('login.html');
+      } else {
+        // Logged in - hide loading overlay
+        document.body.classList.add('auth-checked');
+        if (loadingDiv) {
+          loadingDiv.style.display = 'none';
+        }
+        
+        // Show user email
+        const userInfoDiv = document.getElementById('userInfo');
+        if (userInfoDiv) {
+          userInfoDiv.textContent = `👤 ${user.email}`;
+        }
+        
+        // Auto-enable cloud sync for ALL logged in users
+        setTimeout(() => {
+          if (window.CloudSync) {
+            // Always enable sync when logged in
+            window.CloudSync.enable();
+            window.CloudSync.syncFromCloud(); // Pull data from cloud
+            
+            const btn = document.getElementById('syncToggleBtn');
+            if (btn) {
+              btn.textContent = '✅ Cloud Sync ON';
+              btn.style.background = '#2196F3';
+            }
+            
+            console.log('✅ Cloud sync auto-enabled for ' + user.email);
+          }
+        }, 2000);
+      }
+    });
   </script>
   
   <link rel="stylesheet" href="styles/main.css">
@@ -57,6 +92,15 @@
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
       min-height: 100vh; 
       padding: 20px;
+    }
+    
+    /* Hide body content until auth checked */
+    body {
+      visibility: hidden;
+    }
+    
+    body.auth-checked {
+      visibility: visible;
     }
     
     /* Auth Loading Overlay */
@@ -72,6 +116,7 @@
       align-items: center;
       justify-content: center;
       flex-direction: column;
+      visibility: visible;
     }
     
     #authLoading .spinner {
