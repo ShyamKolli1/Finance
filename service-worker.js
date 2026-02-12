@@ -1,8 +1,9 @@
 // Service Worker for Finance Tracker - Offline Support
-const CACHE_NAME = 'finance-tracker-v2';
+const CACHE_NAME = 'finance-tracker-v3';
 const urlsToCache = [
   './',
   './index.html',
+  './login.html',
   './storage.js',
   './firebase-config.js',
   './firebase-sync.js',
