@@ -552,6 +552,8 @@
       </div>
       <button class="user-dropdown-item" onclick="testSync()">🔄 Test Sync</button>
       <button class="user-dropdown-item" onclick="showAccountInfo()">ℹ️ Account Info</button>
+      <button class="user-dropdown-item" style="color: #ff9800;" onclick="clearAllData()">🗑️ Clear All Data</button>
+      <button class="user-dropdown-item" style="color: #d32f2f; font-weight: 600;" onclick="deleteAccount()">🔥 Delete Account</button>
       <button class="user-dropdown-item logout" onclick="logoutUser()">🚪 Logout</button>
     </div>
   </div>
@@ -870,6 +872,197 @@ function showAccountInfo() {
     `━━━━━━━━━━━━━━━━━━━━━\n\n` +
     `⚠️ Use this SAME email on all devices to sync data!`
   );
+}
+
+// Clear all data and start fresh
+async function clearAllData() {
+  const confirmation = confirm(
+    '⚠️ DELETE ALL DATA?\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    'This will:\n' +
+    '✗ Delete ALL transactions\n' +
+    '✗ Delete ALL labels\n' +
+    '✗ Clear local storage\n' +
+    '✗ Clear cloud storage\n' +
+    '✗ Log you out\n\n' +
+    '⚠️ THIS CANNOT BE UNDONE!\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    'Are you ABSOLUTELY sure?'
+  );
+  
+  if (!confirmation) return;
+  
+  // Double confirmation
+  const doubleCheck = confirm(
+    '🚨 FINAL WARNING!\n\n' +
+    'All your financial data will be PERMANENTLY deleted!\n\n' +
+    'Type YES in your mind and click OK to continue.'
+  );
+  
+  if (!doubleCheck) return;
+  
+  try {
+    // Clear cloud data first
+    if (window.CloudSync && window.firebaseDb) {
+      const userId = window.CloudSync.getUserId();
+      if (userId) {
+        alert('🗑️ Deleting cloud data...');
+        
+        // Delete transactions from cloud
+        const dataRef = window.firebaseDoc(window.firebaseDb, 'users', userId, 'finance', 'transactions');
+        await window.firebaseDeleteDoc(dataRef);
+        
+        // Delete labels from cloud
+        const labelsRef = window.firebaseDoc(window.firebaseDb, 'users', userId, 'finance', 'labels');
+        await window.firebaseDeleteDoc(labelsRef);
+        
+        console.log('✅ Cloud data deleted');
+      }
+    }
+    
+    // Clear all local storage
+    localStorage.removeItem('financeData');
+    localStorage.removeItem('financeLabels');
+    localStorage.removeItem('firestoreSyncEnabled');
+    
+    console.log('✅ Local data cleared');
+    
+    alert(
+      '✅ ALL DATA DELETED!\n\n' +
+      'Your account is now empty.\n\n' +
+      'You can:\n' +
+      '• Stay logged in and start fresh\n' +
+      '• Logout and create new account\n\n' +
+      'Choose what you want to do next:'
+    );
+    
+    // Ask what to do next
+    const shouldLogout = confirm('Do you want to LOGOUT now?\n\nYes = Logout\nNo = Stay logged in with empty account');
+    
+    if (shouldLogout) {
+      // Logout
+      if (window.CloudSync) {
+        window.CloudSync.logout();
+      }
+    } else {
+      // Refresh page to show empty state
+      window.location.reload();
+    }
+    
+  } catch (error) {
+    console.error('Error deleting data:', error);
+    alert('❌ Error deleting data: ' + error.message + '\n\nLocal data has been cleared, but cloud data may remain.');
+    
+    // Clear local anyway
+    localStorage.clear();
+    window.location.reload();
+  }
+}
+
+// Delete account permanently
+async function deleteAccount() {
+  const warning = confirm(
+    '🔥 DELETE ACCOUNT PERMANENTLY?\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    '⚠️ THIS WILL:\n\n' +
+    '✗ DELETE your account completely\n' +
+    '✗ DELETE all your data forever\n' +
+    '✗ DELETE from cloud & local storage\n' +
+    '✗ You CANNOT login with this email again\n' +
+    '✗ You CANNOT recover this account\n\n' +
+    '🔥 THIS IS PERMANENT!\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    'Are you ABSOLUTELY SURE?'
+  );
+  
+  if (!warning) return;
+  
+  // Get email for confirmation
+  const userEmail = window.CloudSync ? window.CloudSync.getUserEmail() : 'your account';
+  
+  // Triple confirmation
+  const finalConfirm = prompt(
+    '🚨 FINAL WARNING!\n\n' +
+    'Type your email to confirm account deletion:\n\n' +
+    userEmail + '\n\n' +
+    'Type it exactly below:'
+  );
+  
+  if (finalConfirm !== userEmail) {
+    alert('❌ Email does not match. Account deletion cancelled.');
+    return;
+  }
+  
+  try {
+    alert('🔥 Deleting account... Please wait...');
+    
+    // Delete all cloud data first
+    if (window.CloudSync && window.firebaseDb) {
+      const userId = window.CloudSync.getUserId();
+      if (userId) {
+        try {
+          // Delete transactions
+          const dataRef = window.firebaseDoc(window.firebaseDb, 'users', userId, 'finance', 'transactions');
+          await window.firebaseDeleteDoc(dataRef);
+          
+          // Delete labels
+          const labelsRef = window.firebaseDoc(window.firebaseDb, 'users', userId, 'finance', 'labels');
+          await window.firebaseDeleteDoc(labelsRef);
+          
+          console.log('✅ Cloud data deleted');
+        } catch (err) {
+          console.warn('Could not delete cloud data:', err);
+        }
+      }
+    }
+    
+    // Clear all local storage
+    localStorage.clear();
+    console.log('✅ Local storage cleared');
+    
+    // Delete Firebase Auth account
+    if (window.firebaseAuth && window.firebaseAuth.currentUser && window.firebaseDeleteUser) {
+      await window.firebaseDeleteUser(window.firebaseAuth.currentUser);
+      console.log('✅ Account deleted from Firebase');
+    }
+    
+    alert(
+      '✅ ACCOUNT DELETED!\n\n' +
+      'Your account has been permanently deleted.\n\n' +
+      'You can now:\n' +
+      '• Create a new account with any email\n' +
+      '• Use the same email (it\'s now available)\n\n' +
+      'Click OK to go to login page.'
+    );
+    
+    // Redirect to login
+    window.location.replace('login.html');
+    
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    
+    let errorMsg = 'Account deletion failed: ' + error.message;
+    
+    // Handle specific errors
+    if (error.code === 'auth/requires-recent-login') {
+      errorMsg = 
+        '❌ Security Error!\n\n' +
+        'For security, you need to login again before deleting your account.\n\n' +
+        'Steps:\n' +
+        '1. Logout\n' +
+        '2. Login again\n' +
+        '3. Try deleting account again\n\n' +
+        'This is a Firebase security requirement.';
+    }
+    
+    alert(errorMsg);
+    
+    // If account was deleted but error thrown, still clear local
+    if (error.code === 'auth/user-token-expired' || error.code === 'auth/user-not-found') {
+      localStorage.clear();
+      window.location.replace('login.html');
+    }
+  }
 }
 
 // Cloud Sync Toggle
