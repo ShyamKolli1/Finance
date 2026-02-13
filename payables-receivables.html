@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes">
+  <meta name="format-detection" content="telephone=no">
+  <title>Payables & Receivables - Finance Tracker</title>
+  
+  <!-- Firebase Scripts -->
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="firebase-sync.js"></script>
+  
+  <!-- Auth Check -->
+  <script type="module">
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    
+    document.documentElement.style.visibility = 'hidden';
+    
+    const waitForAuth = setInterval(() => {
+      if (window.firebaseAuth) {
+        clearInterval(waitForAuth);
+        onAuthStateChanged(window.firebaseAuth, (user) => {
+          if (!user) {
+            window.location.replace('login.html');
+          } else {
+            document.documentElement.style.visibility = 'visible';
+          }
+        });
+      }
+    }, 100);
+  </script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  
+  <link rel="stylesheet" href="styles/main.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 20px;
+    }
+    
+    .header h1 {
+      font-size: 32px;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    
+    .top-nav {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    
+    .top-nav button,
+    .top-nav a button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 15px;
+      transition: all 0.3s;
+      color: white;
+    }
+    
+    .top-nav button:hover,
+    .top-nav a button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    
+    .btn-back {
+      background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
+    }
+    
+    .btn {
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .btn button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 15px;
+      transition: all 0.3s;
+      color: white;
+    }
+    
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .summary-card {
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      text-align: center;
+      transition: all 0.3s;
+    }
+    
+    .summary-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    }
+    
+    .summary-card h3 {
+      color: #666;
+      font-size: 16px;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .summary-card .amount {
+      font-size: 42px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    
+    .summary-card .count {
+      color: #999;
+      font-size: 14px;
+    }
+    
+    .summary-card.receivables .amount { color: #4CAF50; }
+    .summary-card.payables .amount { color: #F44336; }
+    .summary-card.net .amount { color: #2196F3; }
+    
+    /* Detail sections styling */
+    .detail-section {
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .card h2 {
+      color: #333;
+      font-size: 22px;
+      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 3px solid #f0f0f0;
+      padding-bottom: 15px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: all 0.3s;
+      font-family: inherit;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+    }
+    
+    .btn-add {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 16px;
+      color: white;
+      transition: all 0.3s;
+    }
+    
+    .btn-add.receivable {
+      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    }
+    
+    .btn-add.payable {
+      background: linear-gradient(135deg, #F44336 0%, #E53935 100%);
+    }
+    
+    .btn-add:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+    
+    .items-list {
+      display: grid;
+      gap: 20px;
+    }
+    
+    /* Category Card Styles */
+    .category-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: all 0.3s;
+    }
+    
+    .category-card:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      transform: translateY(-2px);
+    }
+    
+    .category-header {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #dee2e6;
+    }
+    
+    .category-header h3 {
+      margin: 0;
+      font-size: 20px;
+      color: #333;
+      font-weight: 600;
+    }
+    
+    .category-stats {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    
+    .category-count {
+      font-size: 14px;
+      color: #666;
+      background: white;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    
+    .category-total {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+    
+    .category-items {
+      background: white;
+    }
+    
+    .item {
+      background: #fafafa;
+      border-radius: 0;
+      padding: 15px 20px;
+      margin: 0;
+      border-bottom: 1px solid #eee;
+      transition: all 0.3s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+    
+    .item:last-child {
+      border-bottom: none;
+    }
+    
+    .item:hover {
+      background: #f0f0f0;
+    }
+    
+    .item.settled {
+      opacity: 0.6;
+      background: #e8f5e9;
+    }
+    
+    .item-info {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .item-person {
+      display: none;
+    }
+    
+    .item-label {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    
+    .item-date {
+      font-size: 12px;
+      color: #999;
+    }
+    
+    .item-amount {
+      font-size: 22px;
+      font-weight: bold;
+      color: #333;
+    }
+    
+    .item-actions {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .btn-settle {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      color: white;
+      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+      transition: all 0.3s;
+    }
+    
+    .btn-settle:hover {
+      transform: scale(1.05);
+    }
+    
+    .btn-delete {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      color: white;
+      background: linear-gradient(135deg, #FF6B6B 0%, #EE5A52 100%);
+      transition: all 0.3s;
+    }
+    
+    .btn-delete:hover {
+      transform: scale(1.05);
+    }
+    
+    .comparison-section {
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 20px;
+      align-items: center;
+      margin-top: 20px;
+    }
+    
+    .comparison-box {
+      text-align: center;
+      padding: 30px;
+      border-radius: 12px;
+      background: #f9f9f9;
+    }
+    
+    .comparison-box h3 {
+      font-size: 18px;
+      color: #666;
+      margin-bottom: 15px;
+    }
+    
+    .comparison-box .amount {
+      font-size: 36px;
+      font-weight: bold;
+    }
+    
+    .comparison-box.receivables .amount { color: #4CAF50; }
+    .comparison-box.payables .amount { color: #F44336; }
+    
+    .vs {
+      font-size: 32px;
+      font-weight: bold;
+      color: #999;
+    }
+    
+    .comparison-result {
+      text-align: center;
+      margin-top: 30px;
+      padding: 25px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .comparison-result h3 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+    
+    .comparison-result .amount {
+      font-size: 42px;
+      font-weight: bold;
+    }
+    
+    .settled-badge {
+      display: inline-block;
+      background: #4CAF50;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+    
+    @media (max-width: 968px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .summary-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .vs {
+        transform: rotate(90deg);
+        margin: 20px 0;
+      }
+    }
+    
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      
+      .header h1 {
+        font-size: 24px;
+      }
+      
+      .top-nav {
+        flex-direction: column;
+      }
+      
+      .top-nav button {
+        width: 100%;
+        padding: 14px;
+      }
+      
+      .card {
+        padding: 20px;
+      }
+      
+      .category-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 15px;
+      }
+      
+      .category-header h3 {
+        font-size: 18px;
+      }
+      
+      .category-stats {
+        width: 100%;
+        justify-content: space-between;
+      }
+      
+      .category-total {
+        font-size: 20px;
+      }
+      
+      .item {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px 15px;
+      }
+      
+      .item-amount {
+        font-size: 20px;
+      }
+      
+      .item-actions {
+        width: 100%;
+        justify-content: stretch;
+      }
+      
+      .btn-settle,
+      .btn-delete {
+        flex: 1;
+        padding: 12px 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1>📊 Payables & Receivables</h1>
+  </div>
+  
+  <div class="top-nav">
+    <a href="index.html"><button class="btn-back">← Back to Tracker</button></a>
+    <a href="pages/labels.html"><button style="background:#9C27B0;">⚙ Manage Labels</button></a>
+    <a href="pages/analytics/"><button style="background:#FF9800;">📊 Analytics</button></a>
+  </div>
+  
+  <!-- Summary Cards - Click to view details -->
+  <div class="summary-cards">
+    <div class="summary-card receivables" onclick="showSection('receivables')" style="cursor: pointer;">
+      <h3>💰 Total Receivables</h3>
+      <div class="amount">$<span id="totalReceivables">0.00</span></div>
+      <div class="count"><span id="receivablesCount">0</span> active items</div>
+      <div style="font-size: 12px; margin-top: 10px; opacity: 0.8;">Click to view →</div>
+    </div>
+    
+    <div class="summary-card payables" onclick="showSection('payables')" style="cursor: pointer;">
+      <h3>💸 Total Payables</h3>
+      <div class="amount">$<span id="totalPayables">0.00</span></div>
+      <div class="count"><span id="payablesCount">0</span> active items</div>
+      <div style="font-size: 12px; margin-top: 10px; opacity: 0.8;">Click to view →</div>
+    </div>
+    
+    <div class="summary-card net" onclick="showSection('comparison')" style="cursor: pointer;">
+      <h3>📈 Net Position</h3>
+      <div class="amount">$<span id="netPosition">0.00</span></div>
+      <div class="count" id="netLabel">Balanced</div>
+      <div style="font-size: 12px; margin-top: 10px; opacity: 0.8;">Click to view →</div>
+    </div>
+  </div>
+  
+  <!-- Add New Entries Section -->
+  <div class="main-grid" style="margin-bottom: 20px;">
+    <!-- Add Receivable (Someone owes you) -->
+    <div class="card">
+      <h2>💰 Add Receivable (You Lent)</h2>
+      <form id="receivableForm" onsubmit="addReceivable(event)">
+        <div class="form-group">
+          <label for="receivablePerson">Person/Entity Name</label>
+          <input type="text" id="receivablePerson" placeholder="e.g., John, Sarah, ABC Corp" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="receivableAmount">Amount</label>
+          <input type="number" id="receivableAmount" placeholder="0.00" step="0.01" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="receivableLabel">Category</label>
+          <select id="receivableLabel" required></select>
+        </div>
+        
+        <div class="form-group">
+          <label for="receivableDate">Date</label>
+          <input type="date" id="receivableDate" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="receivableNotes">Notes (optional)</label>
+          <input type="text" id="receivableNotes" placeholder="Add any notes...">
+        </div>
+        
+        <button type="submit" class="btn-add receivable">➕ Add Receivable</button>
+      </form>
+    </div>
+    
+    <!-- Add Payable (You owe someone) -->
+    <div class="card">
+      <h2>💸 Add Payable (You Borrowed)</h2>
+      <form id="payableForm" onsubmit="addPayable(event)">
+        <div class="form-group">
+          <label for="payablePerson">Person/Entity Name</label>
+          <input type="text" id="payablePerson" placeholder="e.g., John, Sarah, ABC Corp" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="payableAmount">Amount</label>
+          <input type="number" id="payableAmount" placeholder="0.00" step="0.01" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="payableLabel">Category</label>
+          <select id="payableLabel" required></select>
+        </div>
+        
+        <div class="form-group">
+          <label for="payableDate">Date</label>
+          <input type="date" id="payableDate" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="payableNotes">Notes (optional)</label>
+          <input type="text" id="payableNotes" placeholder="Add any notes...">
+        </div>
+        
+        <button type="submit" class="btn-add payable">➕ Add Payable</button>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Receivables Section (Hidden by default) -->
+  <div id="receivablesSection" class="detail-section" style="display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2 style="color: white; margin: 0;">💰 Receivables Management</h2>
+      <button onclick="showSection('home')" style="background: white; color: #667eea; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">← Back to Overview</button>
+    </div>
+    
+    <!-- Receivables List -->
+    <div class="card" style="margin-bottom: 20px;">
+      <h2>💰 Receivables (People Owe You)</h2>
+      <div id="receivablesList" class="items-list"></div>
+    </div>
+  </div>
+  
+  <!-- Payables Section (Hidden by default) -->
+  <div id="payablesSection" class="detail-section" style="display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2 style="color: white; margin: 0;">💸 Payables Management</h2>
+      <button onclick="showSection('home')" style="background: white; color: #667eea; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">← Back to Overview</button>
+    </div>
+    
+    <!-- Payables List -->
+    <div class="card" style="margin-bottom: 20px;">
+      <h2>💸 Payables (You Owe People)</h2>
+      <div id="payablesList" class="items-list"></div>
+    </div>
+  </div>
+  
+  <!-- Comparison Section (Hidden by default) -->
+  <div id="comparisonSection" class="detail-section" style="display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2 style="color: white; margin: 0;">📊 Comparison & Analysis</h2>
+      <button onclick="showSection('home')" style="background: white; color: #667eea; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">← Back to Overview</button>
+    </div>
+    
+  <div class="comparison-section">
+    <!-- Compact Summary -->
+    <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 15px; align-items: center; margin-bottom: 20px;">
+      <div class="comparison-box receivables" style="padding: 20px;">
+        <h3 style="font-size: 14px; margin-bottom: 8px;">Total Receivables</h3>
+        <div class="amount" style="font-size: 28px;">$<span id="compReceivables">0.00</span></div>
+      </div>
+      
+      <div class="vs" style="font-size: 24px;">VS</div>
+      
+      <div class="comparison-box payables" style="padding: 20px;">
+        <h3 style="font-size: 14px; margin-bottom: 8px;">Total Payables</h3>
+        <div class="amount" style="font-size: 28px;">$<span id="compPayables">0.00</span></div>
+      </div>
+    </div>
+    
+    <div class="comparison-result" style="padding: 15px; margin-bottom: 30px;">
+      <h3 id="compResultLabel" style="font-size: 16px; margin-bottom: 5px;">Net Position</h3>
+      <div class="amount" id="compResultAmount" style="font-size: 32px;">$0.00</div>
+    </div>
+    
+    <!-- Charts Section -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+      <div class="card">
+        <h3 style="margin-bottom: 15px;">💰 Receivables by Person</h3>
+        <div style="position: relative; height: 250px;">
+          <canvas id="receivablesChart"></canvas>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3 style="margin-bottom: 15px;">💸 Payables by Person</h3>
+        <div style="position: relative; height: 250px;">
+          <canvas id="payablesChart"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Overview Lists -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div class="card">
+        <h3 style="margin-bottom: 15px; color: #4CAF50;">💰 Active Receivables (Who Owes You)</h3>
+        <div id="activeReceivablesList" style="max-height: 400px; overflow-y: auto;"></div>
+      </div>
+      
+      <div class="card">
+        <h3 style="margin-bottom: 15px; color: #F44336;">💸 Active Payables (Who You Owe)</h3>
+        <div id="activePayablesList" style="max-height: 400px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<script src="storage.js"></script>
+<script>
+// Initialize today's date in forms
+document.getElementById('receivableDate').valueAsDate = new Date();
+document.getElementById('payableDate').valueAsDate = new Date();
+
+// Load labels
+function loadLabels() {
+  const receivableSelect = document.getElementById('receivableLabel');
+  const payableSelect = document.getElementById('payableLabel');
+  
+  const oweLabels = labelMap.owe || defaultLabels.owe || [];
+  const debtLabels = labelMap.debt || defaultLabels.debt || [];
+  
+  receivableSelect.innerHTML = '';
+  oweLabels.forEach(label => {
+    const option = document.createElement('option');
+    option.value = label;
+    option.textContent = label;
+    receivableSelect.appendChild(option);
+  });
+  
+  payableSelect.innerHTML = '';
+  debtLabels.forEach(label => {
+    const option = document.createElement('option');
+    option.value = label;
+    option.textContent = label;
+    payableSelect.appendChild(option);
+  });
+}
+
+// Add Receivable
+function addReceivable(event) {
+  event.preventDefault();
+  
+  const person = document.getElementById('receivablePerson').value.trim();
+  const amount = parseFloat(document.getElementById('receivableAmount').value);
+  const label = document.getElementById('receivableLabel').value;
+  const date = document.getElementById('receivableDate').value;
+  const notes = document.getElementById('receivableNotes').value.trim();
+  
+  const item = {
+    id: Date.now(),
+    type: 'owe',
+    person: person,
+    amount: amount,
+    label: label,
+    date: date,
+    notes: notes,
+    settled: false,
+    createdAt: new Date().toISOString()
+  };
+  
+  data.push(item);
+  saveData();
+  
+  // Sync to cloud if enabled
+  if (window.CloudSync && window.CloudSync.isEnabled()) {
+    window.CloudSync.syncToCloud();
+  }
+  
+  document.getElementById('receivableForm').reset();
+  document.getElementById('receivableDate').valueAsDate = new Date();
+  
+  renderAll();
+  alert(`✅ Receivable added: ${person} owes you $${amount.toFixed(2)}`);
+}
+
+// Add Payable
+function addPayable(event) {
+  event.preventDefault();
+  
+  const person = document.getElementById('payablePerson').value.trim();
+  const amount = parseFloat(document.getElementById('payableAmount').value);
+  const label = document.getElementById('payableLabel').value;
+  const date = document.getElementById('payableDate').value;
+  const notes = document.getElementById('payableNotes').value.trim();
+  
+  const item = {
+    id: Date.now(),
+    type: 'debt',
+    person: person,
+    amount: amount,
+    label: label,
+    date: date,
+    notes: notes,
+    settled: false,
+    createdAt: new Date().toISOString()
+  };
+  
+  data.push(item);
+  saveData();
+  
+  // Sync to cloud if enabled
+  if (window.CloudSync && window.CloudSync.isEnabled()) {
+    window.CloudSync.syncToCloud();
+  }
+  
+  document.getElementById('payableForm').reset();
+  document.getElementById('payableDate').valueAsDate = new Date();
+  
+  renderAll();
+  alert(`✅ Payable added: You owe ${person} $${amount.toFixed(2)}`);
+}
+
+// Mark as settled (with partial payment option)
+function markAsSettled(id, type) {
+  const item = data.find(d => d.id === id);
+  if (!item) return;
+  
+  const fullAmount = item.amount;
+  const promptMessage = type === 'owe'
+    ? `${item.person} owes you $${fullAmount.toFixed(2)}\n\nEnter the amount they paid (or leave blank for full amount):`
+    : `You owe ${item.person} $${fullAmount.toFixed(2)}\n\nEnter the amount you paid back (or leave blank for full amount):`;
+  
+  const paymentInput = prompt(promptMessage, fullAmount.toFixed(2));
+  
+  // User cancelled
+  if (paymentInput === null) return;
+  
+  const paymentAmount = parseFloat(paymentInput);
+  
+  // Validate input
+  if (isNaN(paymentAmount) || paymentAmount <= 0) {
+    alert('❌ Invalid amount. Please enter a valid positive number.');
+    return;
+  }
+  
+  if (paymentAmount > fullAmount) {
+    alert(`❌ Payment amount ($${paymentAmount.toFixed(2)}) cannot be more than what's owed ($${fullAmount.toFixed(2)})`);
+    return;
+  }
+  
+  // Full payment - mark as settled
+  if (paymentAmount >= fullAmount) {
+    item.settled = true;
+    item.settledDate = new Date().toISOString();
+    item.settlementAmount = paymentAmount;
+    
+    const message = type === 'owe'
+      ? `✅ Marked as received! ${item.person} paid you $${paymentAmount.toFixed(2)}`
+      : `✅ Marked as paid! You paid ${item.person} $${paymentAmount.toFixed(2)}`;
+    
+    alert(message);
+  } 
+  // Partial payment - reduce the amount
+  else {
+    const remaining = fullAmount - paymentAmount;
+    item.amount = remaining;
+    
+    // Add payment history
+    if (!item.paymentHistory) item.paymentHistory = [];
+    item.paymentHistory.push({
+      amount: paymentAmount,
+      date: new Date().toISOString(),
+      remainingAfter: remaining
+    });
+    
+    const message = type === 'owe'
+      ? `✅ Partial payment received! ${item.person} paid $${paymentAmount.toFixed(2)}\n\nRemaining: $${remaining.toFixed(2)}`
+      : `✅ Partial payment made! You paid ${item.person} $${paymentAmount.toFixed(2)}\n\nRemaining: $${remaining.toFixed(2)}`;
+    
+    alert(message);
+  }
+  
+  saveData();
+  
+  // Sync to cloud if enabled
+  if (window.CloudSync && window.CloudSync.isEnabled()) {
+    window.CloudSync.syncToCloud();
+  }
+  
+  renderAll();
+}
+
+// Delete item
+function deleteItem(id) {
+  if (confirm('Are you sure you want to delete this item?')) {
+    const index = data.findIndex(d => d.id === id);
+    if (index !== -1) {
+      data.splice(index, 1);
+      saveData();
+      
+      // Sync to cloud if enabled
+      if (window.CloudSync && window.CloudSync.isEnabled()) {
+        window.CloudSync.syncToCloud();
+      }
+      
+      renderAll();
+      alert('🗑️ Item deleted successfully');
+    }
+  }
+}
+
+// Render all lists and calculations
+function renderAll() {
+  const receivables = data.filter(d => d.type === 'owe');
+  const payables = data.filter(d => d.type === 'debt');
+  
+  const activeReceivables = receivables.filter(d => !d.settled);
+  const activePayables = payables.filter(d => !d.settled);
+  
+  const totalReceivables = activeReceivables.reduce((sum, d) => sum + d.amount, 0);
+  const totalPayables = activePayables.reduce((sum, d) => sum + d.amount, 0);
+  const netPosition = totalReceivables - totalPayables;
+  
+  // Update summary
+  document.getElementById('totalReceivables').textContent = totalReceivables.toFixed(2);
+  document.getElementById('receivablesCount').textContent = activeReceivables.length;
+  
+  document.getElementById('totalPayables').textContent = totalPayables.toFixed(2);
+  document.getElementById('payablesCount').textContent = activePayables.length;
+  
+  document.getElementById('netPosition').textContent = Math.abs(netPosition).toFixed(2);
+  const netLabel = document.getElementById('netLabel');
+  if (netPosition > 0) {
+    netLabel.textContent = 'You are owed more';
+    netLabel.style.color = '#4CAF50';
+  } else if (netPosition < 0) {
+    netLabel.textContent = 'You owe more';
+    netLabel.style.color = '#F44336';
+  } else {
+    netLabel.textContent = 'Balanced';
+    netLabel.style.color = '#2196F3';
+  }
+  
+  // Update comparison
+  document.getElementById('compReceivables').textContent = totalReceivables.toFixed(2);
+  document.getElementById('compPayables').textContent = totalPayables.toFixed(2);
+  
+  const compResultLabel = document.getElementById('compResultLabel');
+  const compResultAmount = document.getElementById('compResultAmount');
+  
+  if (netPosition > 0) {
+    compResultLabel.textContent = '✅ Net Receivable (You are owed)';
+    compResultAmount.textContent = `+$${netPosition.toFixed(2)}`;
+  } else if (netPosition < 0) {
+    compResultLabel.textContent = '⚠️ Net Payable (You owe)';
+    compResultAmount.textContent = `-$${Math.abs(netPosition).toFixed(2)}`;
+  } else {
+    compResultLabel.textContent = '✨ Perfectly Balanced';
+    compResultAmount.textContent = '$0.00';
+  }
+  
+  // Render lists
+  renderReceivables(receivables);
+  renderPayables(payables);
+  
+  // Render charts and overview lists
+  renderCharts(activeReceivables, activePayables);
+  renderOverviewLists(activeReceivables, activePayables);
+}
+
+// Group items by category (label)
+function groupByCategory(items) {
+  const grouped = {};
+  
+  items.forEach(item => {
+    const category = item.label;
+    if (!grouped[category]) {
+      grouped[category] = {
+        items: [],
+        total: 0,
+        activeCount: 0
+      };
+    }
+    grouped[category].items.push(item);
+    if (!item.settled) {
+      grouped[category].total += item.amount;
+      grouped[category].activeCount++;
+    }
+  });
+  
+  return grouped;
+}
+
+// Render receivables list
+function renderReceivables(receivables) {
+  const list = document.getElementById('receivablesList');
+  
+  if (receivables.length === 0) {
+    list.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">No receivables yet. Add one above!</div>';
+    return;
+  }
+  
+  // Group by category
+  const grouped = groupByCategory(receivables);
+  
+  // Sort groups by total amount (highest first)
+  const sortedGroups = Object.entries(grouped).sort((a, b) => b[1].total - a[1].total);
+  
+  list.innerHTML = sortedGroups.map(([category, group]) => {
+    // Sort items within group
+    group.items.sort((a, b) => {
+      if (a.settled !== b.settled) return a.settled ? 1 : -1;
+      return new Date(b.date) - new Date(a.date);
+    });
+    
+    const itemsHtml = group.items.map(item => `
+      <div class="item ${item.settled ? 'settled' : ''}">
+        <div class="item-info">
+          <div class="item-label"><strong>${item.person}</strong> ${item.settled ? '<span class="settled-badge">✓ RECEIVED</span>' : ''}</div>
+          <div class="item-date">📅 ${formatDate(item.date)}</div>
+          ${item.notes ? `<div class="item-date">📝 ${item.notes}</div>` : ''}
+          ${item.paymentHistory && item.paymentHistory.length > 0 ? `<div class="item-date" style="color: #2196F3; font-weight: 600;">💳 ${item.paymentHistory.length} partial payment(s) received</div>` : ''}
+        </div>
+        <div class="item-amount">$${item.amount.toFixed(2)}</div>
+        <div class="item-actions">
+          ${!item.settled ? `<button class="btn-settle" onclick="markAsSettled(${item.id}, 'owe')">✓ Got Paid</button>` : ''}
+          <button class="btn-delete" onclick="deleteItem(${item.id})">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+    
+    return `
+      <div class="category-card">
+        <div class="category-header">
+          <h3>💰 ${category}</h3>
+          <div class="category-stats">
+            <span class="category-count">${group.activeCount} active</span>
+            <span class="category-total">$${group.total.toFixed(2)}</span>
+          </div>
+        </div>
+        <div class="category-items">
+          ${itemsHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Render payables list
+function renderPayables(payables) {
+  const list = document.getElementById('payablesList');
+  
+  if (payables.length === 0) {
+    list.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">No payables yet. Add one above!</div>';
+    return;
+  }
+  
+  // Group by category
+  const grouped = groupByCategory(payables);
+  
+  // Sort groups by total amount (highest first)
+  const sortedGroups = Object.entries(grouped).sort((a, b) => b[1].total - a[1].total);
+  
+  list.innerHTML = sortedGroups.map(([category, group]) => {
+    // Sort items within group
+    group.items.sort((a, b) => {
+      if (a.settled !== b.settled) return a.settled ? 1 : -1;
+      return new Date(b.date) - new Date(a.date);
+    });
+    
+    const itemsHtml = group.items.map(item => `
+      <div class="item ${item.settled ? 'settled' : ''}">
+        <div class="item-info">
+          <div class="item-label"><strong>${item.person}</strong> ${item.settled ? '<span class="settled-badge">✓ PAID</span>' : ''}</div>
+          <div class="item-date">📅 ${formatDate(item.date)}</div>
+          ${item.notes ? `<div class="item-date">📝 ${item.notes}</div>` : ''}
+          ${item.paymentHistory && item.paymentHistory.length > 0 ? `<div class="item-date" style="color: #2196F3; font-weight: 600;">💳 ${item.paymentHistory.length} partial payment(s) made</div>` : ''}
+        </div>
+        <div class="item-amount">$${item.amount.toFixed(2)}</div>
+        <div class="item-actions">
+          ${!item.settled ? `<button class="btn-settle" onclick="markAsSettled(${item.id}, 'debt')">✓ Paid Back</button>` : ''}
+          <button class="btn-delete" onclick="deleteItem(${item.id})">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+    
+    return `
+      <div class="category-card">
+        <div class="category-header">
+          <h3>💸 ${category}</h3>
+          <div class="category-stats">
+            <span class="category-count">${group.activeCount} active</span>
+            <span class="category-total">$${group.total.toFixed(2)}</span>
+          </div>
+        </div>
+        <div class="category-items">
+          ${itemsHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Format date
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// Chart instances
+let receivablesChartInstance = null;
+let payablesChartInstance = null;
+
+// Generate colors based on amount (red for high, yellow for low)
+function generateAmountColors(count) {
+  const colors = [];
+  for (let i = 0; i < count; i++) {
+    const ratio = i / Math.max(count - 1, 1);
+    // Red to Orange to Yellow gradient
+    if (ratio < 0.33) {
+      // Red to Orange
+      const r = 244;
+      const g = Math.round(67 + (165 - 67) * (ratio / 0.33));
+      const b = 54;
+      colors.push(`rgb(${r}, ${g}, ${b})`);
+    } else if (ratio < 0.67) {
+      // Orange to Yellow-Orange
+      const r = Math.round(244 - (244 - 255) * ((ratio - 0.33) / 0.34));
+      const g = Math.round(165 + (193 - 165) * ((ratio - 0.33) / 0.34));
+      const b = Math.round(54 + (7 - 54) * ((ratio - 0.33) / 0.34));
+      colors.push(`rgb(${r}, ${g}, ${b})`);
+    } else {
+      // Yellow to Light Yellow
+      const r = 255;
+      const g = Math.round(193 + (241 - 193) * ((ratio - 0.67) / 0.33));
+      const b = Math.round(7 + (118 - 7) * ((ratio - 0.67) / 0.33));
+      colors.push(`rgb(${r}, ${g}, ${b})`);
+    }
+  }
+  return colors;
+}
+
+// Render charts
+function renderCharts(activeReceivables, activePayables) {
+  // Group by person (not category)
+  const receivablesByPerson = {};
+  activeReceivables.forEach(item => {
+    if (!receivablesByPerson[item.person]) {
+      receivablesByPerson[item.person] = 0;
+    }
+    receivablesByPerson[item.person] += item.amount;
+  });
+  
+  const payablesByPerson = {};
+  activePayables.forEach(item => {
+    if (!payablesByPerson[item.person]) {
+      payablesByPerson[item.person] = 0;
+    }
+    payablesByPerson[item.person] += item.amount;
+  });
+  
+  // Receivables Chart
+  const receivablesCtx = document.getElementById('receivablesChart');
+  if (receivablesCtx) {
+    if (receivablesChartInstance) {
+      receivablesChartInstance.destroy();
+    }
+    
+    // Sort by amount (highest to lowest)
+    const receivablesEntries = Object.entries(receivablesByPerson).sort((a, b) => b[1] - a[1]);
+    const receivablesLabels = receivablesEntries.map(e => e[0]);
+    const receivablesData = receivablesEntries.map(e => e[1]);
+    const receivablesColors = generateAmountColors(receivablesData.length);
+    
+    if (receivablesLabels.length > 0) {
+      receivablesChartInstance = new Chart(receivablesCtx, {
+        type: 'doughnut',
+        data: {
+          labels: receivablesLabels,
+          datasets: [{
+            data: receivablesData,
+            backgroundColor: receivablesColors,
+            borderWidth: 2,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { padding: 10, font: { size: 11 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return context.label + ': $' + context.parsed.toFixed(2);
+                }
+              }
+            }
+          }
+        }
+      });
+    } else {
+      receivablesCtx.getContext('2d').clearRect(0, 0, receivablesCtx.width, receivablesCtx.height);
+    }
+  }
+  
+  // Payables Chart
+  const payablesCtx = document.getElementById('payablesChart');
+  if (payablesCtx) {
+    if (payablesChartInstance) {
+      payablesChartInstance.destroy();
+    }
+    
+    // Sort by amount (highest to lowest)
+    const payablesEntries = Object.entries(payablesByPerson).sort((a, b) => b[1] - a[1]);
+    const payablesLabels = payablesEntries.map(e => e[0]);
+    const payablesData = payablesEntries.map(e => e[1]);
+    const payablesColors = generateAmountColors(payablesData.length);
+    
+    if (payablesLabels.length > 0) {
+      payablesChartInstance = new Chart(payablesCtx, {
+        type: 'doughnut',
+        data: {
+          labels: payablesLabels,
+          datasets: [{
+            data: payablesData,
+            backgroundColor: payablesColors,
+            borderWidth: 2,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { padding: 10, font: { size: 11 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return context.label + ': $' + context.parsed.toFixed(2);
+                }
+              }
+            }
+          }
+        }
+      });
+    } else {
+      payablesCtx.getContext('2d').clearRect(0, 0, payablesCtx.width, payablesCtx.height);
+    }
+  }
+}
+
+// Render overview lists
+function renderOverviewLists(activeReceivables, activePayables) {
+  // Sort by amount (highest first)
+  activeReceivables.sort((a, b) => b.amount - a.amount);
+  activePayables.sort((a, b) => b.amount - a.amount);
+  
+  // Receivables list
+  const receivablesList = document.getElementById('activeReceivablesList');
+  if (receivablesList) {
+    if (activeReceivables.length === 0) {
+      receivablesList.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">No active receivables</div>';
+    } else {
+      receivablesList.innerHTML = activeReceivables.map(item => `
+        <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.person}</div>
+            <div style="font-size: 12px; color: #666;">${item.label} • ${formatDate(item.date)}</div>
+            ${item.paymentHistory && item.paymentHistory.length > 0 ? `<div style="font-size: 11px; color: #2196F3; margin-top: 2px;">💳 ${item.paymentHistory.length} payment(s)</div>` : ''}
+          </div>
+          <div style="font-size: 18px; font-weight: bold; color: #4CAF50;">$${item.amount.toFixed(2)}</div>
+        </div>
+      `).join('');
+    }
+  }
+  
+  // Payables list
+  const payablesList = document.getElementById('activePayablesList');
+  if (payablesList) {
+    if (activePayables.length === 0) {
+      payablesList.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">No active payables</div>';
+    } else {
+      payablesList.innerHTML = activePayables.map(item => `
+        <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.person}</div>
+            <div style="font-size: 12px; color: #666;">${item.label} • ${formatDate(item.date)}</div>
+            ${item.paymentHistory && item.paymentHistory.length > 0 ? `<div style="font-size: 11px; color: #2196F3; margin-top: 2px;">💳 ${item.paymentHistory.length} payment(s)</div>` : ''}
+          </div>
+          <div style="font-size: 18px; font-weight: bold; color: #F44336;">$${item.amount.toFixed(2)}</div>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+// Section navigation
+function showSection(section) {
+  // Hide detail sections
+  document.getElementById('receivablesSection').style.display = 'none';
+  document.getElementById('payablesSection').style.display = 'none';
+  document.getElementById('comparisonSection').style.display = 'none';
+  
+  // Get home elements
+  const summaryCards = document.querySelector('.summary-cards');
+  const mainGrid = document.querySelector('.main-grid');
+  
+  // Show selected section
+  if (section === 'receivables') {
+    summaryCards.style.display = 'none';
+    mainGrid.style.display = 'none';
+    document.getElementById('receivablesSection').style.display = 'block';
+  } else if (section === 'payables') {
+    summaryCards.style.display = 'none';
+    mainGrid.style.display = 'none';
+    document.getElementById('payablesSection').style.display = 'block';
+  } else if (section === 'comparison') {
+    summaryCards.style.display = 'none';
+    mainGrid.style.display = 'none';
+    document.getElementById('comparisonSection').style.display = 'block';
+  } else if (section === 'home') {
+    summaryCards.style.display = 'grid';
+    mainGrid.style.display = 'grid';
+  }
+  
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Initialize
+loadLabels();
+renderAll();
+</script>
+
+</body>
+</html>

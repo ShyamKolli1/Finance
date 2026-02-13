@@ -3,7 +3,9 @@ var defaultLabels = {
   expense: ["Rent", "Food", "Groceries / Daily", "Energy Bill", "Credit Card", "Rides", "Subscriptions", "Curry Leaves", "Omis Liquor", "Misc", "Other"],
   income: ["Salary", "Bonus", "Refund", "Gift", "Other Income"],
   transfer: ["Bank Transfer", "Cash Transfer", "Other Transfer"],
-  saving: ["Emergency Fund", "Investment", "Savings", "Other Saving"]
+  saving: ["Emergency Fund", "Investment", "Savings", "Other Saving"],
+  debt: ["Personal Loan", "Friend", "Family", "Business", "Other Debt"],
+  owe: ["Lent to Friend", "Lent to Family", "Business Receivable", "Other Receivable"]
 };
 
 // Global data and label map (shared)
