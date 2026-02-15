@@ -3,23 +3,45 @@
 <head>
   <title>Compare Labels - Finance Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script type="module" src="../../firebase-config.js"></script>
+  <script type="module">
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+    document.documentElement.style.visibility = 'hidden';
+
+    const waitForAuth = setInterval(() => {
+      if (window.firebaseAuth) {
+        clearInterval(waitForAuth);
+        onAuthStateChanged(window.firebaseAuth, (user) => {
+          if (!user) {
+            window.location.replace('../../login.html');
+          } else {
+            document.documentElement.style.visibility = 'visible';
+          }
+        });
+      }
+    }, 100);
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <link rel="stylesheet" href="../../styles/main.css">
+  <script src="../../js/app-shell.js"></script>
   <script src="../../storage.js"></script>
   <script src="../../js/utils.js"></script>
+  <script src="../../js/ui-enhancements.js"></script>
   <script src="../../js/charts.js"></script>
 </head>
 <body>
 
 <div style="text-align: center; color: white; margin-bottom: 20px;">
   <h1>📊 Compare Labels</h1>
+  <p style="font-size: 13px; opacity: 0.9;">Home &gt; Analytics &gt; Compare</p>
 </div>
 
-<div style="max-width: 1200px; margin: 0 auto;">
+<div id="mainContent" style="max-width: 1200px; margin: 0 auto;">
   <div class="top-nav">
-    <a href="../../index.html"><button class="btn-back">← Back to Tracker</button></a>
-    <a href="index.html"><button style="background:#2196F3; color:white;">📊 Overall Analytics</button></a>
-    <a href="monthly.html"><button style="background:#FF9800; color:white;">📅 Monthly</button></a>
+    <a href="../../index.html"><button class="btn-back" aria-label="Back to tracker">← Back to Tracker</button></a>
+    <a href="index.html"><button style="background:#2196F3; color:white;" aria-label="Open overall analytics">📊 Overall Analytics</button></a>
+    <a href="monthly.html"><button style="background:#FF9800; color:white;" aria-label="Open monthly analytics">📅 Monthly</button></a>
   </div>
 
   <!-- Label Selection -->
@@ -31,7 +53,7 @@
       <!-- Will be populated by script -->
     </div>
     
-    <button id="compareBtn" onclick="openLabelCompareModal()" class="btn-primary" disabled>📊 Compare Selected Labels</button>
+    <button id="compareBtn" onclick="openLabelCompareModal()" class="btn-primary" disabled aria-label="Compare selected labels">📊 Compare Selected Labels</button>
   </div>
 </div>
 
@@ -147,9 +169,9 @@ function openLabelCompareModal() {
     // Summary
     const summary = document.getElementById('labelCompareSummary');
     const summaryText = selectedCompareLabels
-      .map(l => `<strong>${l}</strong>: Income $${comparisonData[l].income.toFixed(2)}, Expense $${comparisonData[l].expense.toFixed(2)}`)
+      .map(l => `${l}: Income $${comparisonData[l].income.toFixed(2)}, Expense $${comparisonData[l].expense.toFixed(2)}`)
       .join(' | ');
-    summary.innerHTML = summaryText;
+    summary.textContent = summaryText;
     
     // Chart 1: Stacked bar
     const ctx1 = document.getElementById('modalLabelCompareChart')?.getContext('2d');

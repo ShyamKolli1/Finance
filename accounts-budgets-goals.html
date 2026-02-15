@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes">
+  <meta name="format-detection" content="telephone=no">
+  <title>Accounts, Budgets & Goals - Finance Tracker</title>
+
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="firebase-sync.js"></script>
+
+  <script type="module">
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+    document.documentElement.style.visibility = 'hidden';
+    const waitForAuth = setInterval(() => {
+      if (window.firebaseAuth) {
+        clearInterval(waitForAuth);
+        onAuthStateChanged(window.firebaseAuth, (user) => {
+          if (!user) {
+            window.location.replace('login.html');
+          } else {
+            document.documentElement.style.visibility = 'visible';
+          }
+        });
+      }
+    }, 100);
+  </script>
+
+  <link rel="stylesheet" href="styles/main.css">
+  <script src="js/app-shell.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+    .header { text-align: center; color: white; margin-bottom: 22px; }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 22px;
+      margin-bottom: 16px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.12);
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .inline-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0 14px;
+    }
+
+    .btn-tool {
+      min-height: 42px;
+      width: auto;
+      padding: 8px 12px;
+      margin: 0;
+      font-size: 14px;
+      background: #eef2ff;
+      color: #2f3f86;
+    }
+
+    .goal-row,
+    .budget-row,
+    .account-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px solid #e6eaf8;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      background: #fbfcff;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: #e8ecfb;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .progress-bar > span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .budget-warning {
+      font-size: 12px;
+      font-weight: 700;
+      color: #e65100;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 900px) {
+      .mini-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="mainContent">
+    <div class="header">
+      <h1>⚙️ Accounts, Budgets & Goals</h1>
+    </div>
+
+    <div class="card">
+      <h2>Security & Alerts</h2>
+      <div class="inline-tools">
+        <button type="button" class="btn-tool" onclick="changePasswordFlow()">🔐 Change Password</button>
+        <button type="button" class="btn-tool" onclick="requestDueNotifications()">🔔 Notifications</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Accounts, Budgets & Goals</h2>
+      <div class="mini-grid">
+        <div>
+          <h3>Accounts</h3>
+          <div class="inline-tools">
+            <input id="newAccountName" type="text" placeholder="Add account name">
+            <button type="button" class="btn-tool" onclick="addCustomAccount()">Add Account</button>
+          </div>
+          <div id="accountsList"></div>
+
+          <h3 style="margin-top:12px;">Currency</h3>
+          <div class="inline-tools">
+            <select id="primaryCurrency">
+              <option value="USD">USD</option>
+              <option value="INR">INR</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+            </select>
+            <select id="secondaryCurrency">
+              <option value="">None</option>
+              <option value="USD">USD</option>
+              <option value="INR">INR</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+            </select>
+            <input id="currencyRate" type="number" step="0.0001" placeholder="Rate">
+            <button type="button" class="btn-tool" onclick="saveCurrencySettings()">Save Currency</button>
+          </div>
+        </div>
+
+        <div>
+          <h3>Budgets</h3>
+          <div class="inline-tools">
+            <select id="budgetLabel"></select>
+            <input id="budgetAmount" type="number" step="0.01" placeholder="Budget amount">
+            <button type="button" class="btn-tool" onclick="saveBudget()">Save Budget</button>
+          </div>
+          <div id="budgetStatusList"></div>
+
+          <h3 style="margin-top:12px;">Savings goals</h3>
+          <div class="inline-tools">
+            <input id="goalName" type="text" placeholder="Goal name">
+            <input id="goalTarget" type="number" step="0.01" placeholder="Target amount">
+            <button type="button" class="btn-tool" onclick="addGoal()">Add Goal</button>
+          </div>
+          <div id="goalsList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="storage.js"></script>
+  <script src="js/ui-enhancements.js"></script>
+  <script>
+    const SETTINGS_KEY = 'financeAppSettings';
+    const ACCOUNTS_KEY = 'financeAccounts';
+    const BUDGETS_KEY = 'financeBudgets';
+    const GOALS_KEY = 'financeGoals';
+
+    let appSettings = {
+      primaryCurrency: 'USD',
+      secondaryCurrency: '',
+      secondaryRate: 1,
+      notificationsEnabled: false
+    };
+    let accounts = ['Cash', 'Bank'];
+    let budgets = {};
+    let goals = [];
+
+    function parseLocalJson(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    function showToast(message, kind) {
+      if (typeof window.uiToast === 'function') {
+        window.uiToast(message, kind || 'info');
+      }
+    }
+
+    function formatMoneyFull(value, currencyOverride) {
+      const currency = currencyOverride || appSettings.primaryCurrency || 'USD';
+      const numeric = Number(value || 0);
+      if (!Number.isFinite(numeric)) return '0.00';
+      try {
+        return new Intl.NumberFormat(undefined, {
+          style: 'currency',
+          currency,
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }).format(numeric);
+      } catch (_) {
+        return numeric.toFixed(2);
+      }
+    }
+
+    function saveAll() {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+      localStorage.setItem(BUDGETS_KEY, JSON.stringify(budgets));
+      localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
+    }
+
+    function loadAll() {
+      appSettings = { ...appSettings, ...parseLocalJson(SETTINGS_KEY, {}) };
+      const storedAccounts = parseLocalJson(ACCOUNTS_KEY, ['Cash', 'Bank']);
+      accounts = Array.isArray(storedAccounts) && storedAccounts.length
+        ? Array.from(new Set(storedAccounts.map((acc) => String(acc || '').trim()).filter(Boolean)))
+        : ['Cash', 'Bank'];
+      budgets = parseLocalJson(BUDGETS_KEY, {});
+      if (!budgets || typeof budgets !== 'object') budgets = {};
+      goals = parseLocalJson(GOALS_KEY, []);
+      if (!Array.isArray(goals)) goals = [];
+    }
+
+    function getMonthKeyFromDate(dateValue) {
+      const d = new Date(dateValue);
+      if (Number.isNaN(d.getTime())) return '';
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function calculateBudgetSpentByLabel(monthKey) {
+      const totals = {};
+      data.forEach((transaction) => {
+        if (transaction.type !== 'expense') return;
+        if (getMonthKeyFromDate(transaction.date) !== monthKey) return;
+
+        if (Array.isArray(transaction.splits) && transaction.splits.length) {
+          transaction.splits.forEach((split) => {
+            const lbl = String(split.label || transaction.label || 'Other');
+            const amt = Number(split.amount || 0);
+            if (!Number.isFinite(amt) || amt <= 0) return;
+            totals[lbl] = (totals[lbl] || 0) + amt;
+          });
+          return;
+        }
+
+        const label = String(transaction.label || 'Other');
+        totals[label] = (totals[label] || 0) + Number(transaction.amount || 0);
+      });
+      return totals;
+    }
+
+    function renderAccounts() {
+      const accountsList = document.getElementById('accountsList');
+      if (!accountsList) return;
+      accountsList.innerHTML = accounts.map((acc) => `
+        <div class="account-row">
+          <div>${acc}</div>
+          ${/^(cash|bank)$/i.test(acc) ? '<small>Default</small>' : `<button type="button" class="btn-tool" onclick="removeCustomAccount(${JSON.stringify(acc)})">Remove</button>`}
+        </div>
+      `).join('');
+    }
+
+    function renderCurrencySettings() {
+      const primary = document.getElementById('primaryCurrency');
+      const secondary = document.getElementById('secondaryCurrency');
+      const rate = document.getElementById('currencyRate');
+      if (primary) primary.value = appSettings.primaryCurrency || 'USD';
+      if (secondary) secondary.value = appSettings.secondaryCurrency || '';
+      if (rate) rate.value = appSettings.secondaryRate || 1;
+    }
+
+    function renderBudgetLabels() {
+      const budgetLabel = document.getElementById('budgetLabel');
+      if (!budgetLabel) return;
+      const expenseLabels = (labelMap && labelMap.expense) ? labelMap.expense : (defaultLabels.expense || []);
+      const options = Array.from(new Set(expenseLabels.map((item) => String(item || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+      const selected = budgetLabel.value;
+      budgetLabel.innerHTML = options.map((label) => `<option value="${label.replace(/"/g, '&quot;')}">${label}</option>`).join('');
+      if (selected && options.includes(selected)) budgetLabel.value = selected;
+    }
+
+    function renderBudgetStatus() {
+      const node = document.getElementById('budgetStatusList');
+      if (!node) return;
+      const monthKey = getMonthKeyFromDate(new Date());
+      const spentByLabel = calculateBudgetSpentByLabel(monthKey);
+      const labels = Object.keys(budgets);
+      if (!labels.length) {
+        node.innerHTML = '<div style="color:#777;">No budgets set yet.</div>';
+        return;
+      }
+
+      node.innerHTML = labels.map((label) => {
+        const budget = Number(budgets[label] || 0);
+        const spent = Number(spentByLabel[label] || 0);
+        const ratio = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+        const warn = budget > 0 && spent >= budget * 0.9;
+        return `
+          <div class="budget-row">
+            <div>
+              <strong>${label}</strong>
+              <div>${formatMoneyFull(spent)} / ${formatMoneyFull(budget)}</div>
+              <div class="progress-bar"><span style="width:${ratio}%;"></span></div>
+              ${warn ? '<div class="budget-warning">Near or over budget</div>' : ''}
+            </div>
+            <button type="button" class="btn-tool" onclick="deleteBudget(${JSON.stringify(label)})">Delete</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderGoals() {
+      const node = document.getElementById('goalsList');
+      if (!node) return;
+      const savedAmount = data.filter((tx) => tx.type === 'saving').reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+      if (!goals.length) {
+        node.innerHTML = '<div style="color:#777;">No goals yet.</div>';
+        return;
+      }
+
+      node.innerHTML = goals.map((goal) => {
+        const ratio = Math.min((savedAmount / Number(goal.target || 1)) * 100, 100);
+        return `
+          <div class="goal-row">
+            <div>
+              <strong>${goal.name}</strong>
+              <div>${formatMoneyFull(savedAmount)} / ${formatMoneyFull(goal.target)}</div>
+              <div class="progress-bar"><span style="width:${ratio}%;"></span></div>
+            </div>
+            <button type="button" class="btn-tool" onclick="removeGoal(${JSON.stringify(goal.id)})">Delete</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function addCustomAccount() {
+      const input = document.getElementById('newAccountName');
+      if (!input) return;
+      const name = String(input.value || '').trim();
+      if (!name) return;
+      if (accounts.includes(name)) {
+        showToast('Account already exists', 'warning');
+        return;
+      }
+      accounts.push(name);
+      input.value = '';
+      saveAll();
+      renderAccounts();
+      showToast('Account added', 'success');
+    }
+
+    function removeCustomAccount(name) {
+      if (/^(cash|bank)$/i.test(name)) return;
+      accounts = accounts.filter((acc) => acc !== name);
+      if (!accounts.length) accounts = ['Cash', 'Bank'];
+      saveAll();
+      renderAccounts();
+      showToast('Account removed', 'warning');
+    }
+
+    function saveCurrencySettings() {
+      const primary = document.getElementById('primaryCurrency');
+      const secondary = document.getElementById('secondaryCurrency');
+      const rate = document.getElementById('currencyRate');
+      if (!primary || !secondary || !rate) return;
+      appSettings.primaryCurrency = primary.value || 'USD';
+      appSettings.secondaryCurrency = secondary.value || '';
+      const parsedRate = Number(rate.value || 1);
+      appSettings.secondaryRate = Number.isFinite(parsedRate) && parsedRate > 0 ? parsedRate : 1;
+      saveAll();
+      showToast('Currency settings saved', 'success');
+    }
+
+    function saveBudget() {
+      const labelEl = document.getElementById('budgetLabel');
+      const amountEl = document.getElementById('budgetAmount');
+      if (!labelEl || !amountEl) return;
+      const label = labelEl.value;
+      const amount = Number(amountEl.value);
+      if (!label || !Number.isFinite(amount) || amount <= 0) {
+        showToast('Enter valid budget label and amount', 'warning');
+        return;
+      }
+      budgets[label] = amount;
+      amountEl.value = '';
+      saveAll();
+      renderBudgetStatus();
+      showToast('Budget saved', 'success');
+    }
+
+    function deleteBudget(label) {
+      delete budgets[label];
+      saveAll();
+      renderBudgetStatus();
+    }
+
+    function addGoal() {
+      const nameEl = document.getElementById('goalName');
+      const targetEl = document.getElementById('goalTarget');
+      if (!nameEl || !targetEl) return;
+      const name = String(nameEl.value || '').trim();
+      const target = Number(targetEl.value);
+      if (!name || !Number.isFinite(target) || target <= 0) {
+        showToast('Enter valid goal name and target', 'warning');
+        return;
+      }
+      goals.push({ id: `goal-${Date.now()}`, name, target });
+      nameEl.value = '';
+      targetEl.value = '';
+      saveAll();
+      renderGoals();
+      showToast('Goal added', 'success');
+    }
+
+    function removeGoal(id) {
+      goals = goals.filter((goal) => goal.id !== id);
+      saveAll();
+      renderGoals();
+    }
+
+    async function requestDueNotifications() {
+      if (!('Notification' in window)) {
+        showToast('Browser notifications are not supported here', 'warning');
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        showToast('Notifications permission was not granted', 'warning');
+        return;
+      }
+      appSettings.notificationsEnabled = true;
+      saveAll();
+      showToast('Notifications enabled', 'success');
+    }
+
+    async function changePasswordFlow() {
+      if (!window.firebaseAuth || !window.firebaseAuth.currentUser || !window.firebaseUpdatePassword) {
+        alert('Password change is not available right now.');
+        return;
+      }
+
+      const user = window.firebaseAuth.currentUser;
+      const current = prompt('Enter your current password');
+      if (!current) return;
+      const next = prompt('Enter new password (min 6 characters)');
+      if (!next || next.length < 6) {
+        alert('New password must be at least 6 characters.');
+        return;
+      }
+      const confirmNew = prompt('Confirm new password');
+      if (confirmNew !== next) {
+        alert('Passwords do not match.');
+        return;
+      }
+
+      try {
+        if (window.firebaseReauthenticateWithCredential && window.firebaseEmailAuthProvider) {
+          const credential = window.firebaseEmailAuthProvider.credential(user.email, current);
+          await window.firebaseReauthenticateWithCredential(user, credential);
+        }
+        await window.firebaseUpdatePassword(user, next);
+        showToast('Password updated successfully', 'success');
+      } catch (error) {
+        console.error('Password update failed:', error);
+        alert('Could not update password. Please verify current password and try again.');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof loadData === 'function') loadData();
+      loadAll();
+      renderAccounts();
+      renderCurrencySettings();
+      renderBudgetLabels();
+      renderBudgetStatus();
+      renderGoals();
+    });
+  </script>
+</body>
+</html>

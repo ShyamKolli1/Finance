@@ -3,25 +3,47 @@
 <head>
   <title>Analytics - Finance Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script type="module" src="../../firebase-config.js"></script>
+  <script type="module">
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+    document.documentElement.style.visibility = 'hidden';
+
+    const waitForAuth = setInterval(() => {
+      if (window.firebaseAuth) {
+        clearInterval(waitForAuth);
+        onAuthStateChanged(window.firebaseAuth, (user) => {
+          if (!user) {
+            window.location.replace('../../login.html');
+          } else {
+            document.documentElement.style.visibility = 'visible';
+          }
+        });
+      }
+    }, 100);
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <link rel="stylesheet" href="../../styles/main.css">
+  <script src="../../js/app-shell.js"></script>
   <script src="../../storage.js"></script>
   <script src="../../js/utils.js"></script>
+  <script src="../../js/ui-enhancements.js"></script>
   <script src="../../js/charts.js"></script>
 </head>
 <body>
 
 <div style="text-align: center; color: white; margin-bottom: 20px;">
   <h1>📊 Financial Analytics</h1>
+  <p style="font-size: 13px; opacity: 0.9;">Home &gt; Analytics</p>
 </div>
 
-<div style="max-width: 1400px; margin: 0 auto;">
+<div id="mainContent" style="max-width: 1400px; margin: 0 auto;">
   <div class="top-nav">
-    <a href="../../index.html"><button class="btn-back">← Back to Tracker</button></a>
-    <a href="../labels.html"><button style="background:#9C27B0; color:white;">⚙ Manage Labels</button></a>
-    <a href="monthly.html"><button style="background:#FF9800; color:white;">📅 Monthly</button></a>
-    <a href="compare.html"><button style="background:#FF5722; color:white;">📊 Compare</button></a>
-    <button id="reportBtn" onclick="showReport()" style="background:#4CAF50; color:white;">📝 Report</button>
+    <a href="../../index.html"><button class="btn-back" aria-label="Back to tracker">← Back to Tracker</button></a>
+    <a href="../labels.html"><button style="background:#9C27B0; color:white;" aria-label="Open manage labels">⚙ Manage Labels</button></a>
+    <a href="monthly.html"><button style="background:#FF9800; color:white;" aria-label="Open monthly analytics">📅 Monthly</button></a>
+    <a href="compare.html"><button style="background:#FF5722; color:white;" aria-label="Open compare labels">📊 Compare</button></a>
+    <button id="reportBtn" onclick="showReport()" style="background:#4CAF50; color:white;" aria-label="Open report">📝 Report</button>
   </div>
 
   <div id="debugInfo" style="font-size:13px; color:#666; margin-bottom:8px;">⏳ Loading...</div>
@@ -243,13 +265,17 @@ function showLabelDetails() {
   labelTransactions.forEach(t => {
     const amount = parseFloat(t.amount);
     totalAmount += amount;
+
+    const safeDate = typeof window.escapeHtml === 'function' ? window.escapeHtml(t.date) : String(t.date || '');
+    const safeType = typeof window.escapeHtml === 'function' ? window.escapeHtml(t.type) : String(t.type || '');
+    const safeAccount = typeof window.escapeHtml === 'function' ? window.escapeHtml(t.account) : String(t.account || '');
     
     const row = document.createElement('tr');
     row.style.borderBottom = '1px solid #eee';
     row.innerHTML = `
-      <td style="padding: 10px;">${t.date}</td>
-      <td style="padding: 10px;"><strong>${t.type}</strong></td>
-      <td style="padding: 10px;">${t.account}</td>
+      <td style="padding: 10px;">${safeDate}</td>
+      <td style="padding: 10px;"><strong>${safeType}</strong></td>
+      <td style="padding: 10px;">${safeAccount}</td>
       <td style="padding: 10px; text-align: right;">$${amount.toFixed(2)}</td>
     `;
     tbody.appendChild(row);

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Finance Discipline Tracker</title>
+  <title>Finance Tracker</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover, user-scalable=yes">
   <meta name="theme-color" content="#667eea">
   <meta name="description" content="Track your income, expenses, and manage your finances easily">
-  <meta name="format-detection" content="telephone=no"
+  <meta name="format-detection" content="telephone=no">
   
   <!-- iOS specific meta tags -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -64,7 +64,12 @@
             const userInfoDiv = document.getElementById('userInfo');
             if (userInfoDiv) {
               const userId = user.uid.substring(0, 8);
-              userInfoDiv.innerHTML = `👤 ${user.email} <span style="font-size:11px; opacity:0.8;">(ID: ${userId})</span>`;
+              userInfoDiv.textContent = `👤 ${user.email} `;
+              const idSpan = document.createElement('span');
+              idSpan.style.fontSize = '11px';
+              idSpan.style.opacity = '0.8';
+              idSpan.textContent = `(ID: ${userId})`;
+              userInfoDiv.appendChild(idSpan);
             }
             
             // Update user dropdown
@@ -110,6 +115,7 @@
   </script>
   
   <link rel="stylesheet" href="styles/main.css">
+  <script src="js/app-shell.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
@@ -297,7 +303,20 @@
     .btn-analytics { background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); }
     .btn-labels { background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); }
     
-    .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      margin: 0 auto 20px;
+      max-width: 980px;
+      width: 100%;
+    }
+
+    .dashboard > .card {
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
     
     .card {
       background: white;
@@ -397,13 +416,56 @@
     .btn-clear { background: linear-gradient(135deg, #FF6B6B 0%, #EE5A52 100%); color: white; }
     .btn-clear:hover { background: linear-gradient(135deg, #EE5A52 0%, #E64A39 100%); }
     
-    .transactions-section {
-      grid-column: 1 / -1;
+    .transactions-section,
+    .due-soon-card {
+      grid-column: auto;
+    }
+
+    .due-soon-list {
+      list-style: none;
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+    }
+
+    .due-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid #edf0f8;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fafbff;
+    }
+
+    .due-meta {
+      font-size: 12px;
+      color: #65719a;
+    }
+
+    .due-badge {
+      font-size: 11px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-weight: 700;
+    }
+
+    .due-badge.overdue {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .due-badge.soon {
+      background: #fff3e0;
+      color: #e65100;
     }
     
     .transaction-list {
       list-style: none;
       max-height: 500px;
+      min-height: 220px;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
@@ -438,6 +500,7 @@
     
     .transaction-date { font-size: 13px; color: #999; margin-bottom: 6px; }
     .transaction-label { font-weight: 600; color: #333; font-size: 15px; line-height: 1.4; }
+    .transaction-note { font-size: 12px; color: #666; margin-top: 4px; }
     
     .transaction-amount {
       font-weight: bold;
@@ -464,6 +527,154 @@
       justify-content: center;
       transition: all 0.2s ease;
       touch-action: manipulation;
+    }
+
+    .transaction-actions {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn-edit {
+      background: #e8f1ff;
+      color: #2f65c9;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 16px;
+      border: 2px solid transparent;
+      min-width: 48px;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      touch-action: manipulation;
+    }
+
+    .btn-edit:hover {
+      background: #2f65c9;
+      color: #fff;
+      border-color: #2f65c9;
+    }
+
+    .transactions-tools {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .transactions-export {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .btn-tool {
+      min-height: 44px;
+      width: auto;
+      padding: 10px 14px;
+      font-size: 14px;
+      background: #eef2ff;
+      color: #2f3f86;
+    }
+
+    .btn-tool:hover {
+      background: #dfe6ff;
+    }
+
+    .edit-mode-hint {
+      margin-top: 8px;
+      color: #2f65c9;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .inline-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0 14px;
+    }
+
+    .recent-chip {
+      width: auto;
+      min-height: 38px;
+      margin: 0;
+      padding: 8px 12px;
+      font-size: 13px;
+      border-radius: 999px;
+      background: #eef3ff;
+      color: #2b3a7d;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .goal-row,
+    .budget-row,
+    .account-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px solid #e6eaf8;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      background: #fbfcff;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: #e8ecfb;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .progress-bar > span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .budget-warning {
+      font-size: 12px;
+      font-weight: 700;
+      color: #e65100;
+      margin-top: 4px;
+    }
+
+    .backup-banner {
+      border: 1px solid #ffe0b2;
+      background: #fff8e8;
+      border-radius: 10px;
+      padding: 12px;
+      color: #7c4d00;
+      margin-bottom: 14px;
+      display: none;
+    }
+
+    .split-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    #trendSvg {
+      width: 100%;
+      height: 120px;
+      border: 1px solid #e6ebfb;
+      border-radius: 10px;
+      background: #fafcff;
     }
     
     .btn-delete:hover { 
@@ -496,6 +707,10 @@
       .transaction-item { padding: 20px 16px; }
       .transaction-amount { font-size: 18px; min-width: 95px; }
       .btn-delete { font-size: 22px; min-width: 52px; min-height: 52px; }
+      .btn-edit { font-size: 18px; min-width: 52px; min-height: 52px; }
+      .transactions-tools { grid-template-columns: 1fr; }
+      .mini-grid { grid-template-columns: 1fr; }
+      .split-row { grid-template-columns: 1fr; }
       
       /* User profile on mobile */
       .top-buttons { gap: 8px; }
@@ -509,6 +724,7 @@
       .balance-box .amount { font-size: 28px; }
       .transaction-list { max-height: 450px; }
       .button-group { grid-template-columns: 1fr; gap: 12px; }
+      .transactions-export { flex-direction: column; }
       
       /* Stack buttons vertically on small phones */
       .top-buttons { flex-direction: column; }
@@ -531,23 +747,23 @@
   <p>🔐 Checking login...</p>
 </div>
 
-<div class="container">
+<div class="container" id="mainContent">
   <div class="header">
-    <h1>💰 Finance Discipline Tracker</h1>
+    <h1>💰 Finance Tracker</h1>
   </div>
   
   <div class="top-buttons">
-  <a href="pages/analytics/"><button class="btn btn-analytics">📊 Analytics</button></a>
-  <a href="pages/labels.html"><button class="btn btn-labels">⚙ Manage Labels</button></a>
+  <a href="pages/analytics/"><button class="btn btn-analytics" aria-label="Open analytics">📊 Analytics</button></a>
+  <a href="pages/labels.html"><button class="btn btn-labels" aria-label="Open manage labels">⚙ Manage Labels</button></a>
   </div>
   
   <div class="top-buttons">
-  <a href="payables-receivables.html" style="text-decoration: none;"><button class="btn" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); color: white; font-weight: 600;">💰 Payables & Receivables</button></a>
+  <a href="payables-receivables.html" style="text-decoration: none;"><button class="btn" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); color: white; font-weight: 600;" aria-label="Open payables and receivables">💰 Payables & Receivables</button></a>
   </div>
   
   <div class="top-buttons">
-  <button id="syncToggleBtn" class="btn" style="background:#4CAF50; color:white;" onclick="toggleCloudSync()">☁️ Enable Cloud Sync</button>
-  <button class="btn" style="background:#2196F3; color:white;" onclick="testSync()">🔄 Test Sync</button>
+  <button id="syncToggleBtn" class="btn" style="background:#4CAF50; color:white;" onclick="toggleCloudSync()" aria-label="Enable cloud sync">☁️ Enable Cloud Sync</button>
+  <button class="btn" style="background:#2196F3; color:white;" onclick="testSync()" aria-label="Run sync test">🔄 Test Sync</button>
   
   <!-- User Profile Dropdown -->
   <div class="user-profile">
@@ -563,6 +779,8 @@
       </div>
       <button class="user-dropdown-item" onclick="testSync()">🔄 Test Sync</button>
       <button class="user-dropdown-item" onclick="showAccountInfo()">ℹ️ Account Info</button>
+      <button class="user-dropdown-item" onclick="changePasswordFlow()">🔐 Change Password</button>
+      <button class="user-dropdown-item" onclick="requestDueNotifications()">🔔 Enable Notifications</button>
       <button class="user-dropdown-item" style="color: #ff9800;" onclick="clearAllData()">🗑️ Clear All Data</button>
       <button class="user-dropdown-item" style="color: #d32f2f; font-weight: 600;" onclick="deleteAccount()">🔥 Delete Account</button>
       <button class="user-dropdown-item logout" onclick="logoutUser()">🚪 Logout</button>
@@ -587,7 +805,12 @@
         </div>
       </div>
     </div>
-    
+
+    <div class="card due-soon-card">
+      <h2>⏰ Due Soon</h2>
+      <ul id="dueSoonList" class="due-soon-list"></ul>
+    </div>
+
     <!-- Add Transaction Form -->
     <div class="card">
       <h2>➕ Add Transaction</h2>
@@ -619,23 +842,1182 @@
           <option value="Bank">🏧 Bank</option>
         </select>
       </div>
+
+      <div class="form-group">
+        <label for="repeatEvery">Repeat</label>
+        <select id="repeatEvery">
+          <option value="none">No repeat</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label><input id="isScheduled" type="checkbox" style="width:auto; min-height:auto; margin-right:8px;"> Schedule for selected date</label>
+      </div>
+
+      <div class="form-group">
+        <label><input id="isSplit" type="checkbox" style="width:auto; min-height:auto; margin-right:8px;" onchange="toggleSplitEditor()"> Split transaction</label>
+      </div>
+
+      <div id="splitEditor" style="display:none; margin-bottom:12px;">
+        <div id="splitRows"></div>
+        <button type="button" class="btn-tool" onclick="addSplitRow()">+ Add Split Row</button>
+      </div>
+
+      <div class="form-group">
+        <label for="transactionDate">Date</label>
+        <input id="transactionDate" type="date">
+      </div>
+
+      <div class="form-group">
+        <label for="notes">Notes (optional)</label>
+        <input id="notes" type="text" maxlength="180" placeholder="Add a short note">
+      </div>
       
       <div class="button-group">
-        <button class="btn-add" onclick="addTransaction()">Add Transaction</button>
-        <button class="btn-clear" onclick="clearForm()">Clear</button>
+        <button class="btn-add" onclick="addTransaction()" aria-label="Add transaction">Add Transaction</button>
+        <button class="btn-clear" onclick="clearForm()" aria-label="Clear transaction form">Clear</button>
+      </div>
+      <div id="editModeHint" class="edit-mode-hint" style="display:none;">Editing existing transaction</div>
+    </div>
+
+    <div class="card" id="backupReminderBanner">
+      <div class="backup-banner" id="backupBannerInner">
+        It has been a while since your last export. Create a backup now.
+        <div class="inline-tools">
+          <button type="button" class="btn-tool" onclick="exportDataAsJson()">Backup JSON</button>
+          <button type="button" class="btn-tool" onclick="exportDataAsCsv()">Backup CSV</button>
+        </div>
+      </div>
+      <h2>📈 Insights</h2>
+      <div class="mini-grid">
+        <div>
+          <h4>Net worth trend</h4>
+          <svg id="trendSvg" viewBox="0 0 600 120" preserveAspectRatio="none"></svg>
+        </div>
+        <div>
+          <h4>This month vs last month</h4>
+          <div id="monthCompareSummary"></div>
+          <h4 style="margin-top:14px;">Secondary currency</h4>
+          <div id="secondaryCurrencySummary"></div>
+        </div>
       </div>
     </div>
     
-    <!-- Transactions List -->
-    <div class="card transactions-section">
-      <h2>📋 Recent Transactions</h2>
-      <ul id="list" class="transaction-list"></ul>
-    </div>
+    <input id="importFile" type="file" accept=".json,.csv" style="display:none;" onchange="handleImportFile(event)">
   </div>
 </div>
 
 <script src="storage.js"></script>
+<script src="js/ui-enhancements.js"></script>
 <script>
+
+function formatMoney(value) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric)) return '0.00';
+  return numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatMoneyFull(value, currencyOverride) {
+  const currency = currencyOverride || ((window.appSettings && window.appSettings.primaryCurrency) || 'USD');
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric)) return '0.00';
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(numeric);
+  } catch (_) {
+    return numeric.toFixed(2);
+  }
+}
+
+const SETTINGS_KEY = 'financeAppSettings';
+const ACCOUNTS_KEY = 'financeAccounts';
+const BUDGETS_KEY = 'financeBudgets';
+const GOALS_KEY = 'financeGoals';
+const LABEL_META_KEY = 'financeLabelMeta';
+
+window.appSettings = {
+  primaryCurrency: 'USD',
+  secondaryCurrency: '',
+  secondaryRate: 1,
+  notificationsEnabled: false,
+  lastBackupReminderAt: '',
+  shortcutsEnabled: true
+};
+
+let accounts = ['Cash', 'Bank'];
+let budgets = {};
+let goals = [];
+let labelMeta = {};
+let lastDeletedTransaction = null;
+let undoDeleteTimer = null;
+
+function parseLocalJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function saveAdvancedState() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(window.appSettings));
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+  localStorage.setItem(BUDGETS_KEY, JSON.stringify(budgets));
+  localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
+  localStorage.setItem(LABEL_META_KEY, JSON.stringify(labelMeta));
+}
+
+function loadAdvancedState() {
+  const settings = parseLocalJson(SETTINGS_KEY, {});
+  window.appSettings = {
+    ...window.appSettings,
+    ...settings
+  };
+
+  const storedAccounts = parseLocalJson(ACCOUNTS_KEY, ['Cash', 'Bank']);
+  accounts = Array.isArray(storedAccounts) && storedAccounts.length
+    ? Array.from(new Set(storedAccounts.map((acc) => String(acc || '').trim()).filter(Boolean)))
+    : ['Cash', 'Bank'];
+
+  budgets = parseLocalJson(BUDGETS_KEY, {});
+  if (!budgets || typeof budgets !== 'object') budgets = {};
+
+  goals = parseLocalJson(GOALS_KEY, []);
+  if (!Array.isArray(goals)) goals = [];
+
+  labelMeta = parseLocalJson(LABEL_META_KEY, {});
+  if (!labelMeta || typeof labelMeta !== 'object') labelMeta = {};
+}
+
+function getTodayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function ensureTransactionId(transaction) {
+  if (!transaction.id) {
+    transaction.id = `tx-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  }
+  return transaction.id;
+}
+
+function isScheduledFuture(transaction) {
+  if (!transaction || !transaction.scheduled || !transaction.date) return false;
+  const today = getTodayIsoDate();
+  return String(transaction.date) > today;
+}
+
+function getVisibleTransactions() {
+  return data.filter((item) => !isScheduledFuture(item));
+}
+
+function getMonthKeyFromDate(dateValue) {
+  const d = new Date(dateValue);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function calculateBudgetSpentByLabel(monthKey) {
+  const totals = {};
+  getVisibleTransactions().forEach((transaction) => {
+    if (transaction.type !== 'expense') return;
+    if (getMonthKeyFromDate(transaction.date) !== monthKey) return;
+
+    if (Array.isArray(transaction.splits) && transaction.splits.length) {
+      transaction.splits.forEach((split) => {
+        const lbl = String(split.label || transaction.label || 'Other');
+        const amt = Number(split.amount || 0);
+        if (!Number.isFinite(amt) || amt <= 0) return;
+        totals[lbl] = (totals[lbl] || 0) + amt;
+      });
+      return;
+    }
+
+    const label = String(transaction.label || 'Other');
+    totals[label] = (totals[label] || 0) + Number(transaction.amount || 0);
+  });
+  return totals;
+}
+
+function getLabelDisplay(label) {
+  const raw = String(label || 'Other');
+  const meta = labelMeta[raw] || {};
+  return {
+    icon: meta.icon || '',
+    color: meta.color || '',
+    text: raw
+  };
+}
+
+function toSecondaryCurrency(amount) {
+  const rate = Number(window.appSettings.secondaryRate || 0);
+  if (!window.appSettings.secondaryCurrency || !Number.isFinite(rate) || rate <= 0) return '';
+  const converted = Number(amount || 0) * rate;
+  return formatMoneyFull(converted, window.appSettings.secondaryCurrency);
+}
+
+function setLastExportNow() {
+  localStorage.setItem('financeLastExportAt', new Date().toISOString());
+}
+
+function getLabelOptionsForBudgets() {
+  const expenseLabels = (labelMap && labelMap.expense) ? labelMap.expense : (defaultLabels.expense || []);
+  return Array.from(new Set(expenseLabels.map((item) => String(item || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+
+function safeText(value) {
+  if (typeof window.escapeHtml === 'function') {
+    return window.escapeHtml(value);
+  }
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function askConfirm(message, title) {
+  if (typeof window.uiConfirm === 'function') {
+    return window.uiConfirm(message, title || 'Please Confirm');
+  }
+  return Promise.resolve(confirm(message));
+}
+
+let editingIndex = null;
+let transactionSearchTerm = '';
+let transactionTypeFilter = 'all';
+let transactionSort = 'date_desc';
+
+function showToast(message, kind) {
+  if (typeof window.uiToast === 'function') {
+    window.uiToast(message, kind || 'info');
+  }
+}
+
+function normalizeTransactionType(type) {
+  const allowedTypes = ['income', 'expense', 'transfer', 'saving'];
+  return allowedTypes.includes(type) ? type : 'expense';
+}
+
+function getTransactionDateString(value) {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+  const fallback = new Date(String(value));
+  if (!Number.isNaN(fallback.getTime())) {
+    return fallback.toISOString().slice(0, 10);
+  }
+  return '';
+}
+
+function getTransactionTimestamp(transaction) {
+  const candidates = [transaction.createdAt, transaction.date];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const direct = new Date(candidate);
+    if (!Number.isNaN(direct.getTime())) return direct.getTime();
+    const parts = String(candidate).split('/');
+    if (parts.length === 3) {
+      const month = Number(parts[0]);
+      const day = Number(parts[1]);
+      const year = Number(parts[2]);
+      const parsed = new Date(year, month - 1, day);
+      if (!Number.isNaN(parsed.getTime())) return parsed.getTime();
+    }
+  }
+  return 0;
+}
+
+function getFilteredSortedTransactions() {
+  const search = transactionSearchTerm.trim().toLowerCase();
+  const rows = data.map((transaction, index) => ({ transaction, index }));
+
+  const filtered = rows.filter(({ transaction }) => {
+    if (!['income', 'expense', 'transfer', 'saving'].includes(transaction.type)) return false;
+    const typeOk = transactionTypeFilter === 'all' || transaction.type === transactionTypeFilter;
+    if (!typeOk) return false;
+
+    if (!search) return true;
+    const label = String(transaction.label || '').toLowerCase();
+    const notes = String(transaction.notes || '').toLowerCase();
+    return label.includes(search) || notes.includes(search);
+  });
+
+  filtered.sort((left, right) => {
+    const a = left.transaction;
+    const b = right.transaction;
+
+    if (transactionSort === 'amount_desc') {
+      return Number(b.amount || 0) - Number(a.amount || 0);
+    }
+    if (transactionSort === 'amount_asc') {
+      return Number(a.amount || 0) - Number(b.amount || 0);
+    }
+    if (transactionSort === 'label_asc') {
+      return String(a.label || '').localeCompare(String(b.label || ''));
+    }
+    if (transactionSort === 'date_asc') {
+      return getTransactionTimestamp(a) - getTransactionTimestamp(b);
+    }
+    return getTransactionTimestamp(b) - getTransactionTimestamp(a);
+  });
+
+  return filtered;
+}
+
+function calculateDueSoonItems() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return data
+    .filter((item) => (item.type === 'debt' || item.type === 'owe') && !item.settled && item.dueDate)
+    .map((item) => {
+      const due = new Date(item.dueDate);
+      due.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((due.getTime() - today.getTime()) / 86400000);
+      return { item, diffDays };
+    })
+    .filter((entry) => entry.diffDays <= 7)
+    .sort((a, b) => a.diffDays - b.diffDays)
+    .slice(0, 8);
+}
+
+function renderDueSoon() {
+  const list = document.getElementById('dueSoonList');
+  if (!list) return;
+
+  const dueItems = calculateDueSoonItems();
+  if (!dueItems.length) {
+    list.innerHTML = '<li class="due-row"><div><strong>No upcoming due items</strong><div class="due-meta">Add a due date in Payables & Receivables to track reminders.</div></div><a href="payables-receivables.html" class="btn-tool" style="text-decoration:none;">Open Page</a></li>';
+    return;
+  }
+
+  list.innerHTML = dueItems.map(({ item, diffDays }) => {
+    const title = String(item.person || item.label || 'Entry');
+    const amount = Number(item.amount || 0).toFixed(2);
+    const direction = item.type === 'owe' ? 'They owe you' : 'You owe';
+    const badge = diffDays < 0
+      ? `<span class="due-badge overdue">Overdue ${Math.abs(diffDays)}d</span>`
+      : `<span class="due-badge soon">Due in ${diffDays}d</span>`;
+
+    return `
+      <li class="due-row">
+        <div>
+          <strong>${safeText(title)} • $${amount}</strong>
+          <div class="due-meta">${direction} • ${safeText(String(item.label || 'General'))}</div>
+        </div>
+        ${badge}
+      </li>
+    `;
+  }).join('');
+}
+
+function setEditMode(isEditing) {
+  const addBtn = document.querySelector('.btn-add');
+  const hint = document.getElementById('editModeHint');
+  if (addBtn) addBtn.textContent = isEditing ? 'Save Changes' : 'Add Transaction';
+  if (hint) hint.style.display = isEditing ? 'block' : 'none';
+}
+
+function startEditTransaction(index) {
+  const transaction = data[index];
+  if (!transaction) return;
+
+  editingIndex = index;
+  document.getElementById('type').value = normalizeTransactionType(transaction.type);
+  updateLabels();
+  document.getElementById('label').value = transaction.label || '';
+  document.getElementById('amount').value = Number(transaction.amount || 0);
+  document.getElementById('account').value = /cash/i.test(normalizeAccount(transaction.account)) ? 'Cash' : 'Bank';
+  document.getElementById('transactionDate').value = getTransactionDateString(transaction.date) || new Date().toISOString().slice(0, 10);
+  document.getElementById('notes').value = String(transaction.notes || '');
+  setEditMode(true);
+  document.getElementById('amount').focus();
+}
+
+function wireTransactionTools() {
+  const searchInput = document.getElementById('transactionSearch');
+  const typeFilter = document.getElementById('transactionTypeFilter');
+  const sortSelect = document.getElementById('transactionSort');
+
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      transactionSearchTerm = searchInput.value || '';
+      render();
+    });
+  }
+
+  if (typeFilter) {
+    typeFilter.addEventListener('change', () => {
+      transactionTypeFilter = typeFilter.value || 'all';
+      render();
+    });
+  }
+
+  if (sortSelect) {
+    sortSelect.addEventListener('change', () => {
+      transactionSort = sortSelect.value || 'date_desc';
+      render();
+    });
+  }
+}
+
+function downloadBlob(content, fileName, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportDataAsJson() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    version: 1,
+    transactions: data,
+    labels: labelMap
+  };
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(JSON.stringify(payload, null, 2), `finance-export-${stamp}.json`, 'application/json');
+  setLastExportNow();
+  renderBackupReminder();
+  showToast('JSON backup downloaded', 'success');
+}
+
+function exportDataAsCsv() {
+  const headers = ['type', 'amount', 'label', 'account', 'date', 'notes', 'createdAt'];
+  const escape = (value) => {
+    const raw = String(value ?? '');
+    return `"${raw.replace(/"/g, '""')}"`;
+  };
+  const rows = data.map((transaction) => [
+    transaction.type,
+    Number(transaction.amount || 0),
+    transaction.label,
+    transaction.account,
+    transaction.date,
+    transaction.notes || '',
+    transaction.createdAt || ''
+  ]);
+
+  const lines = [headers.map(escape).join(',')];
+  rows.forEach((row) => lines.push(row.map(escape).join(',')));
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(lines.join('\n'), `finance-export-${stamp}.csv`, 'text/csv;charset=utf-8;');
+  setLastExportNow();
+  renderBackupReminder();
+  showToast('CSV file downloaded', 'success');
+}
+
+function parseCsvLine(line) {
+  const out = [];
+  let current = '';
+  let quoted = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (quoted && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === ',' && !quoted) {
+      out.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  out.push(current);
+  return out;
+}
+
+function parseCsvTransactions(csvText) {
+  const lines = csvText.split(/\r?\n/).filter((line) => line.trim() !== '');
+  if (lines.length < 2) return [];
+  const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+
+  const indexMap = {
+    type: headers.indexOf('type'),
+    amount: headers.indexOf('amount'),
+    label: headers.indexOf('label'),
+    account: headers.indexOf('account'),
+    date: headers.indexOf('date'),
+    notes: headers.indexOf('notes'),
+    createdAt: headers.indexOf('createdat')
+  };
+
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line);
+    const type = normalizeTransactionType(String(values[indexMap.type] || '').trim());
+    const amount = Number(values[indexMap.amount]);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+
+    return {
+      type,
+      amount,
+      label: String(values[indexMap.label] || '').trim() || 'Other',
+      account: /cash/i.test(normalizeAccount(values[indexMap.account])) ? 'Cash' : 'Bank',
+      date: String(values[indexMap.date] || '').trim() || new Date().toISOString().slice(0, 10),
+      notes: String(values[indexMap.notes] || '').trim(),
+      createdAt: String(values[indexMap.createdAt] || '').trim() || new Date().toISOString()
+    };
+  }).filter(Boolean);
+}
+
+function normalizeImportedTransaction(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const amount = Number(raw.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  return {
+    type: normalizeTransactionType(String(raw.type || '').trim()),
+    amount,
+    label: String(raw.label || '').trim() || 'Other',
+    account: /cash/i.test(normalizeAccount(raw.account)) ? 'Cash' : 'Bank',
+    date: String(raw.date || '').trim() || new Date().toISOString().slice(0, 10),
+    notes: String(raw.notes || '').trim(),
+    createdAt: String(raw.createdAt || '').trim() || new Date().toISOString()
+  };
+}
+
+function mergeImportedLabels(importedLabels) {
+  if (!importedLabels || typeof importedLabels !== 'object') return;
+  const categories = Object.keys(defaultLabels);
+  categories.forEach((category) => {
+    const incoming = Array.isArray(importedLabels[category]) ? importedLabels[category] : [];
+    const existing = Array.isArray(labelMap[category]) ? labelMap[category] : defaultLabels[category].slice();
+    const combined = Array.from(new Set([...existing, ...incoming.map((item) => String(item || '').trim()).filter(Boolean)]));
+    labelMap[category] = combined;
+  });
+}
+
+function replaceLabels(importedLabels) {
+  if (!importedLabels || typeof importedLabels !== 'object') return;
+  const categories = Object.keys(defaultLabels);
+  categories.forEach((category) => {
+    const incoming = Array.isArray(importedLabels[category]) ? importedLabels[category] : defaultLabels[category];
+    labelMap[category] = incoming.map((item) => String(item || '').trim()).filter(Boolean);
+    if (!labelMap[category].length) {
+      labelMap[category] = defaultLabels[category].slice();
+    }
+  });
+}
+
+function openImportDialog() {
+  const input = document.getElementById('importFile');
+  if (input) {
+    input.value = '';
+    input.click();
+  }
+}
+
+async function handleImportFile(event) {
+  const input = event.target;
+  const file = input && input.files ? input.files[0] : null;
+  if (!file) return;
+
+  try {
+    const rawText = await file.text();
+    let incomingTransactions = [];
+    let incomingLabels = null;
+
+    if (file.name.toLowerCase().endsWith('.json')) {
+      const parsed = JSON.parse(rawText);
+      if (Array.isArray(parsed)) {
+        incomingTransactions = parsed;
+      } else {
+        incomingTransactions = parsed.transactions || parsed.data || [];
+        incomingLabels = parsed.labels || parsed.labelMap || null;
+      }
+    } else {
+      incomingTransactions = parseCsvTransactions(rawText);
+    }
+
+    const sanitized = incomingTransactions.map(normalizeImportedTransaction).filter(Boolean);
+    if (!sanitized.length) {
+      alert('No valid transactions found in selected file.');
+      return;
+    }
+
+    const shouldContinue = await askConfirm(`Import ${sanitized.length} transaction(s) from ${file.name}?`, 'Confirm Import');
+    if (!shouldContinue) return;
+
+    const replaceMode = await askConfirm('Choose import mode:\n\nOK = Replace existing data\nCancel = Merge with existing data', 'Import Mode');
+
+    localStorage.setItem('financeDataBackup', JSON.stringify(data));
+    localStorage.setItem('financeLabelsBackup', JSON.stringify(labelMap));
+    localStorage.setItem('financeImportBackupAt', new Date().toISOString());
+
+    if (replaceMode) {
+      data.length = 0;
+      data.push(...sanitized);
+      replaceLabels(incomingLabels);
+    } else {
+      data.push(...sanitized);
+      mergeImportedLabels(incomingLabels);
+    }
+
+    saveData();
+    saveLabelMap();
+    updateLabels();
+    render();
+    clearForm();
+    showToast(`Imported ${sanitized.length} transaction(s)`, 'success');
+  } catch (error) {
+    console.error('Import failed:', error);
+    alert('Import failed. Please check file format and try again.');
+  }
+}
+
+function populateAccountOptions() {
+  const accountSelect = document.getElementById('account');
+  if (!accountSelect) return;
+
+  const current = accountSelect.value;
+  accountSelect.innerHTML = accounts.map((acc) => `<option value="${safeText(acc)}">${safeText(acc)}</option>`).join('');
+  if (accounts.includes(current)) accountSelect.value = current;
+  else accountSelect.value = accounts[0] || 'Cash';
+
+  const accountsList = document.getElementById('accountsList');
+  if (accountsList) {
+    accountsList.innerHTML = accounts.map((acc) => `
+      <div class="account-row">
+        <div>${safeText(acc)}</div>
+        ${/^(cash|bank)$/i.test(acc) ? '<small>Default</small>' : `<button type="button" class="btn-tool" onclick="removeCustomAccount('${safeText(acc)}')">Remove</button>`}
+      </div>
+    `).join('');
+  }
+}
+
+function addCustomAccount() {
+  const input = document.getElementById('newAccountName');
+  if (!input) return;
+  const name = String(input.value || '').trim();
+  if (!name) return;
+  if (accounts.includes(name)) {
+    showToast('Account already exists', 'warning');
+    return;
+  }
+  accounts.push(name);
+  saveAdvancedState();
+  populateAccountOptions();
+  input.value = '';
+  showToast('Account added', 'success');
+}
+
+function removeCustomAccount(name) {
+  if (/^(cash|bank)$/i.test(name)) return;
+  accounts = accounts.filter((acc) => acc !== name);
+  if (!accounts.length) accounts = ['Cash', 'Bank'];
+  saveAdvancedState();
+  populateAccountOptions();
+  showToast('Account removed', 'warning');
+}
+
+function renderBudgetStatus() {
+  const node = document.getElementById('budgetStatusList');
+  if (!node) return;
+  const monthKey = getMonthKeyFromDate(new Date());
+  const spentByLabel = calculateBudgetSpentByLabel(monthKey);
+
+  const labels = Object.keys(budgets);
+  if (!labels.length) {
+    node.innerHTML = '<div class="empty-state" style="padding:10px 0;">No budgets set yet.</div>';
+    return;
+  }
+
+  node.innerHTML = labels.map((label) => {
+    const budget = Number(budgets[label] || 0);
+    const spent = Number(spentByLabel[label] || 0);
+    const ratio = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+    const warn = budget > 0 && spent >= budget * 0.9;
+    return `
+      <div class="budget-row">
+        <div>
+          <strong>${safeText(label)}</strong>
+          <div>${formatMoneyFull(spent)} / ${formatMoneyFull(budget)}</div>
+          <div class="progress-bar"><span style="width:${ratio}%;"></span></div>
+          ${warn ? '<div class="budget-warning">Near or over budget</div>' : ''}
+        </div>
+        <button type="button" class="btn-tool" onclick="deleteBudget('${safeText(label)}')">Delete</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function saveBudget() {
+  const labelEl = document.getElementById('budgetLabel');
+  const amountEl = document.getElementById('budgetAmount');
+  if (!labelEl || !amountEl) return;
+  const label = labelEl.value;
+  const amount = Number(amountEl.value);
+  if (!label || !Number.isFinite(amount) || amount <= 0) {
+    showToast('Enter valid budget label and amount', 'warning');
+    return;
+  }
+  budgets[label] = amount;
+  saveAdvancedState();
+  renderBudgetStatus();
+  amountEl.value = '';
+  showToast('Budget saved', 'success');
+}
+
+function deleteBudget(label) {
+  delete budgets[label];
+  saveAdvancedState();
+  renderBudgetStatus();
+}
+
+function addGoal() {
+  const nameEl = document.getElementById('goalName');
+  const targetEl = document.getElementById('goalTarget');
+  if (!nameEl || !targetEl) return;
+  const name = String(nameEl.value || '').trim();
+  const target = Number(targetEl.value);
+  if (!name || !Number.isFinite(target) || target <= 0) {
+    showToast('Enter valid goal name and target', 'warning');
+    return;
+  }
+  goals.push({ id: `goal-${Date.now()}`, name, target });
+  saveAdvancedState();
+  renderGoals();
+  nameEl.value = '';
+  targetEl.value = '';
+  showToast('Goal added', 'success');
+}
+
+function removeGoal(id) {
+  goals = goals.filter((goal) => goal.id !== id);
+  saveAdvancedState();
+  renderGoals();
+}
+
+function renderGoals() {
+  const node = document.getElementById('goalsList');
+  if (!node) return;
+  const savedAmount = getVisibleTransactions().filter((tx) => tx.type === 'saving').reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+  if (!goals.length) {
+    node.innerHTML = '<div class="empty-state" style="padding:10px 0;">No goals yet.</div>';
+    return;
+  }
+  node.innerHTML = goals.map((goal) => {
+    const ratio = Math.min((savedAmount / Number(goal.target || 1)) * 100, 100);
+    return `
+      <div class="goal-row">
+        <div>
+          <strong>${safeText(goal.name)}</strong>
+          <div>${formatMoneyFull(savedAmount)} / ${formatMoneyFull(goal.target)}</div>
+          <div class="progress-bar"><span style="width:${ratio}%;"></span></div>
+        </div>
+        <button type="button" class="btn-tool" onclick="removeGoal('${safeText(goal.id)}')">Delete</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function saveLabelMeta() {
+  const labelEl = document.getElementById('metaLabel');
+  const iconEl = document.getElementById('metaIcon');
+  const colorEl = document.getElementById('metaColor');
+  if (!labelEl || !labelEl.value) return;
+  labelMeta[labelEl.value] = {
+    icon: String((iconEl && iconEl.value) || '').trim(),
+    color: String((colorEl && colorEl.value) || '').trim()
+  };
+  saveAdvancedState();
+  updateLabels();
+  render();
+  showToast('Category style saved', 'success');
+}
+
+function syncMetaEditorFields() {
+  const labelEl = document.getElementById('metaLabel');
+  const iconEl = document.getElementById('metaIcon');
+  const colorEl = document.getElementById('metaColor');
+  if (!labelEl || !iconEl || !colorEl) return;
+  const meta = labelMeta[labelEl.value] || {};
+  iconEl.value = meta.icon || '';
+  colorEl.value = meta.color || '#667eea';
+}
+
+function saveCurrencySettings() {
+  const primary = document.getElementById('primaryCurrency');
+  const secondary = document.getElementById('secondaryCurrency');
+  const rate = document.getElementById('currencyRate');
+  if (!primary || !secondary || !rate) return;
+
+  window.appSettings.primaryCurrency = primary.value || 'USD';
+  window.appSettings.secondaryCurrency = secondary.value || '';
+  const parsedRate = Number(rate.value || 1);
+  window.appSettings.secondaryRate = Number.isFinite(parsedRate) && parsedRate > 0 ? parsedRate : 1;
+  saveAdvancedState();
+  render();
+  showToast('Currency settings saved', 'success');
+}
+
+function renderCurrencySettings() {
+  const primary = document.getElementById('primaryCurrency');
+  const secondary = document.getElementById('secondaryCurrency');
+  const rate = document.getElementById('currencyRate');
+  if (primary) primary.value = window.appSettings.primaryCurrency || 'USD';
+  if (secondary) secondary.value = window.appSettings.secondaryCurrency || '';
+  if (rate) rate.value = window.appSettings.secondaryRate || 1;
+}
+
+function renderQuickAddRecent() {
+  const host = document.getElementById('recentQuickAdd');
+  if (!host) return;
+  const recent = getVisibleTransactions().filter((tx) => ['income', 'expense', 'transfer', 'saving'].includes(tx.type)).slice(-10).reverse();
+  const combos = [];
+  const map = new Set();
+  recent.forEach((tx) => {
+    const key = `${tx.type}|${tx.label}|${tx.amount}`;
+    if (map.has(key)) return;
+    map.add(key);
+    combos.push(tx);
+  });
+
+  if (!combos.length) {
+    host.innerHTML = '';
+    return;
+  }
+
+  host.innerHTML = combos.slice(0, 6).map((tx) => {
+    const display = getLabelDisplay(tx.label);
+    return `<button type="button" class="recent-chip" onclick="quickFillTransaction('${safeText(tx.type)}','${safeText(tx.label)}','${safeText(String(tx.amount || 0))}','${safeText(String(tx.account || 'Cash'))}')">${display.icon ? safeText(display.icon) + ' ' : ''}${safeText(String(tx.label || 'Item'))} ${formatMoneyFull(tx.amount)}</button>`;
+  }).join('');
+}
+
+function quickFillTransaction(type, label, amount, account) {
+  document.getElementById('type').value = normalizeTransactionType(type);
+  updateLabels();
+  document.getElementById('label').value = label;
+  document.getElementById('amount').value = Number(amount || 0);
+  document.getElementById('account').value = accounts.includes(account) ? account : (accounts[0] || 'Cash');
+  document.getElementById('amount').focus();
+}
+
+function addSplitRow(labelValue = '', amountValue = '') {
+  const rows = document.getElementById('splitRows');
+  if (!rows) return;
+  const labels = (labelMap.expense || defaultLabels.expense || []);
+  const row = document.createElement('div');
+  row.className = 'split-row';
+  row.innerHTML = `
+    <select class="split-label">${labels.map((label) => `<option value="${safeText(label)}">${safeText(label)}</option>`).join('')}</select>
+    <input class="split-amount" type="number" step="0.01" placeholder="Split amount">
+    <button type="button" class="btn-tool">Remove</button>
+  `;
+  const removeBtn = row.querySelector('button');
+  removeBtn.addEventListener('click', () => row.remove());
+  rows.appendChild(row);
+  if (labelValue) row.querySelector('.split-label').value = labelValue;
+  if (amountValue) row.querySelector('.split-amount').value = amountValue;
+}
+
+function toggleSplitEditor() {
+  const enabled = document.getElementById('isSplit') && document.getElementById('isSplit').checked;
+  const editor = document.getElementById('splitEditor');
+  if (!editor) return;
+  editor.style.display = enabled ? 'block' : 'none';
+  const rows = document.getElementById('splitRows');
+  if (enabled && rows && !rows.children.length) addSplitRow();
+}
+
+function readSplitValues(totalAmount) {
+  const enabled = document.getElementById('isSplit') && document.getElementById('isSplit').checked;
+  if (!enabled) return [];
+  const rows = Array.from(document.querySelectorAll('#splitRows .split-row'));
+  const splits = rows.map((row) => {
+    const label = row.querySelector('.split-label') ? row.querySelector('.split-label').value : '';
+    const amount = Number(row.querySelector('.split-amount') ? row.querySelector('.split-amount').value : 0);
+    return { label, amount };
+  }).filter((split) => split.label && Number.isFinite(split.amount) && split.amount > 0);
+
+  if (!splits.length) return null;
+  const splitTotal = splits.reduce((sum, split) => sum + split.amount, 0);
+  if (Math.abs(splitTotal - Number(totalAmount || 0)) > 0.01) {
+    alert('Split amounts must equal total amount.');
+    return null;
+  }
+  return splits;
+}
+
+function processScheduledTransactions() {
+  const today = getTodayIsoDate();
+  let changed = false;
+  data.forEach((tx) => {
+    if (tx.scheduled && tx.date && String(tx.date) <= today) {
+      tx.scheduled = false;
+      changed = true;
+    }
+  });
+  if (changed) saveData();
+}
+
+function processRecurringTransactions() {
+  const today = getTodayIsoDate();
+  let changed = false;
+  const existingKeys = new Set(data.map((tx) => `${tx.recurringSourceId || tx.id || ''}|${tx.date || ''}`));
+
+  const templates = data.filter((tx) => tx.repeatEvery && tx.repeatEvery !== 'none' && !tx.recurringSourceId);
+  templates.forEach((template) => {
+    ensureTransactionId(template);
+    if (!template.date) return;
+
+    const baseDate = new Date(template.date);
+    if (Number.isNaN(baseDate.getTime())) return;
+
+    let cursor = new Date(baseDate);
+    while (cursor.toISOString().slice(0, 10) < today) {
+      if (template.repeatEvery === 'weekly') cursor.setDate(cursor.getDate() + 7);
+      else cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    const dueDate = cursor.toISOString().slice(0, 10);
+    const key = `${template.id}|${dueDate}`;
+    if (dueDate <= today && !existingKeys.has(key)) {
+      const clone = {
+        ...template,
+        id: `tx-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+        date: dueDate,
+        recurringSourceId: template.id,
+        createdAt: new Date().toISOString(),
+        scheduled: false
+      };
+      data.push(clone);
+      existingKeys.add(key);
+      changed = true;
+    }
+  });
+
+  if (changed) saveData();
+}
+
+function renderTrendAndComparison(cashBalance, bankBalance) {
+  const svg = document.getElementById('trendSvg');
+  const compareNode = document.getElementById('monthCompareSummary');
+  const secondaryNode = document.getElementById('secondaryCurrencySummary');
+  if (!svg || !compareNode || !secondaryNode) return;
+
+  const tx = getVisibleTransactions().filter((item) => ['income', 'expense'].includes(item.type));
+  const sorted = tx.slice().sort((a, b) => getTransactionTimestamp(a) - getTransactionTimestamp(b));
+  let running = 0;
+  const series = sorted.map((item) => {
+    const sign = item.type === 'expense' ? -1 : 1;
+    running += sign * Number(item.amount || 0);
+    return running;
+  });
+
+  if (!series.length) {
+    svg.innerHTML = '<text x="20" y="65" fill="#7a84a8" font-size="14">Add transactions to see trend</text>';
+  } else {
+    const min = Math.min(...series);
+    const max = Math.max(...series);
+    const spread = max - min || 1;
+    const points = series.map((value, index) => {
+      const x = 20 + (560 * (index / Math.max(series.length - 1, 1)));
+      const y = 100 - ((value - min) / spread) * 80;
+      return `${x},${y}`;
+    }).join(' ');
+    svg.innerHTML = `<polyline fill="none" stroke="#667eea" stroke-width="3" points="${points}" />`;
+  }
+
+  const monthNow = getMonthKeyFromDate(new Date());
+  const dt = new Date();
+  dt.setMonth(dt.getMonth() - 1);
+  const monthPrev = getMonthKeyFromDate(dt);
+
+  const sumByMonth = (monthKey, type) => getVisibleTransactions()
+    .filter((item) => item.type === type && getMonthKeyFromDate(item.date) === monthKey)
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  const incomeNow = sumByMonth(monthNow, 'income');
+  const expenseNow = sumByMonth(monthNow, 'expense');
+  const incomePrev = sumByMonth(monthPrev, 'income');
+  const expensePrev = sumByMonth(monthPrev, 'expense');
+  compareNode.innerHTML = `
+    <div>Income: ${formatMoneyFull(incomeNow)} (last: ${formatMoneyFull(incomePrev)})</div>
+    <div>Expense: ${formatMoneyFull(expenseNow)} (last: ${formatMoneyFull(expensePrev)})</div>
+    <div style="margin-top:6px; font-weight:700;">Net change: ${formatMoneyFull((incomeNow - expenseNow) - (incomePrev - expensePrev))}</div>
+  `;
+
+  if (window.appSettings.secondaryCurrency && Number(window.appSettings.secondaryRate) > 0) {
+    const total = Number(cashBalance || 0) + Number(bankBalance || 0);
+    secondaryNode.innerHTML = `<div>${toSecondaryCurrency(total)} (${safeText(window.appSettings.secondaryCurrency)})</div>`;
+  } else {
+    secondaryNode.innerHTML = '<div>Not configured</div>';
+  }
+}
+
+function renderBackupReminder() {
+  const wrapper = document.getElementById('backupReminderBanner');
+  const inner = document.getElementById('backupBannerInner');
+  if (!wrapper || !inner) return;
+
+  const last = localStorage.getItem('financeLastExportAt');
+  if (!last) {
+    inner.style.display = 'block';
+    return;
+  }
+
+  const days = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
+  inner.style.display = days >= 30 ? 'block' : 'none';
+}
+
+function showUndoDeleteBanner() {
+  let host = document.getElementById('undoDeleteHost');
+  if (!host) {
+    const listCard = document.querySelector('.transactions-section');
+    if (!listCard) return;
+    host = document.createElement('div');
+    host.id = 'undoDeleteHost';
+    host.className = 'backup-banner';
+    listCard.insertBefore(host, listCard.firstChild);
+  }
+
+  if (!lastDeletedTransaction) {
+    host.style.display = 'none';
+    return;
+  }
+
+  host.innerHTML = `Transaction deleted. <button type="button" class="btn-tool" onclick="undoDeleteTransaction()">Undo</button>`;
+  host.style.display = 'block';
+}
+
+function undoDeleteTransaction() {
+  if (!lastDeletedTransaction) return;
+  data.splice(lastDeletedTransaction.index, 0, lastDeletedTransaction.transaction);
+  lastDeletedTransaction = null;
+  if (undoDeleteTimer) {
+    clearTimeout(undoDeleteTimer);
+    undoDeleteTimer = null;
+  }
+  saveData();
+  render();
+  showUndoDeleteBanner();
+  showToast('Delete undone', 'success');
+}
+
+function bindKeyboardShortcuts() {
+  document.addEventListener('keydown', (event) => {
+    if (!window.appSettings.shortcutsEnabled) return;
+    const tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '';
+    const editing = tag === 'input' || tag === 'textarea' || event.target.isContentEditable;
+    if (editing && event.key !== 'Escape') return;
+
+    if (event.key === 'n' || event.key === 'N') {
+      event.preventDefault();
+      const amount = document.getElementById('amount');
+      if (amount) amount.focus();
+    } else if (event.key === '/') {
+      event.preventDefault();
+      const search = document.getElementById('transactionSearch');
+      if (search) search.focus();
+    } else if (event.key === 'Escape') {
+      document.querySelectorAll('#userDropdown.show').forEach((node) => node.classList.remove('show'));
+      const splitEditor = document.getElementById('splitEditor');
+      if (splitEditor && splitEditor.style.display === 'block' && document.getElementById('isSplit')) {
+        document.getElementById('isSplit').checked = false;
+        toggleSplitEditor();
+      }
+    }
+  });
+}
+
+async function requestDueNotifications() {
+  if (!('Notification' in window)) {
+    showToast('Browser notifications are not supported here', 'warning');
+    return;
+  }
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    showToast('Notifications permission was not granted', 'warning');
+    return;
+  }
+  window.appSettings.notificationsEnabled = true;
+  saveAdvancedState();
+  showToast('Notifications enabled', 'success');
+  maybeNotifyDueSoon();
+}
+
+function maybeNotifyDueSoon() {
+  if (!window.appSettings.notificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const todayKey = getTodayIsoDate();
+  if (localStorage.getItem('financeLastDueNotify') === todayKey) return;
+  const items = calculateDueSoonItems();
+  if (!items.length) return;
+  const top = items[0];
+  new Notification('Finance Tracker reminder', {
+    body: `${top.item.person || top.item.label || 'Item'} is due ${top.diffDays < 0 ? 'overdue' : 'in ' + top.diffDays + ' day(s)'}`
+  });
+  localStorage.setItem('financeLastDueNotify', todayKey);
+}
+
+async function changePasswordFlow() {
+  if (!window.firebaseAuth || !window.firebaseAuth.currentUser || !window.firebaseUpdatePassword) {
+    alert('Password change is not available right now.');
+    return;
+  }
+
+  const user = window.firebaseAuth.currentUser;
+  const current = prompt('Enter your current password');
+  if (!current) return;
+  const next = prompt('Enter new password (min 6 characters)');
+  if (!next || next.length < 6) {
+    alert('New password must be at least 6 characters.');
+    return;
+  }
+  const confirmNew = prompt('Confirm new password');
+  if (confirmNew !== next) {
+    alert('Passwords do not match.');
+    return;
+  }
+
+  try {
+    if (window.firebaseReauthenticateWithCredential && window.firebaseEmailAuthProvider) {
+      const credential = window.firebaseEmailAuthProvider.credential(user.email, current);
+      await window.firebaseReauthenticateWithCredential(user, credential);
+    }
+    await window.firebaseUpdatePassword(user, next);
+    showToast('Password updated successfully', 'success');
+  } catch (error) {
+    console.error('Password update failed:', error);
+    alert('Could not update password. Please verify current password and try again.');
+  }
+}
+
+function initAdvancedPanels() {
+  loadAdvancedState();
+  renderCurrencySettings();
+  populateAccountOptions();
+  renderBudgetStatus();
+  renderGoals();
+  renderBackupReminder();
+  bindKeyboardShortcuts();
+  maybeNotifyDueSoon();
+  const metaLabel = document.getElementById('metaLabel');
+  if (metaLabel) {
+    metaLabel.addEventListener('change', syncMetaEditorFields);
+  }
+}
 
 function updateLabels() {
   const selectedType = document.getElementById("type").value;
@@ -646,15 +2028,43 @@ function updateLabels() {
   labels.forEach(label => {
     const option = document.createElement("option");
     option.value = label;
-    option.textContent = label;
+    const display = getLabelDisplay(label);
+    option.textContent = `${display.icon ? display.icon + ' ' : ''}${display.text}`;
     labelSelect.appendChild(option);
   });
+
+  const budgetLabel = document.getElementById('budgetLabel');
+  if (budgetLabel) {
+    const budgetOptions = getLabelOptionsForBudgets();
+    const selected = budgetLabel.value;
+    budgetLabel.innerHTML = budgetOptions.map((label) => `<option value="${safeText(label)}">${safeText(label)}</option>`).join('');
+    if (selected && budgetOptions.includes(selected)) budgetLabel.value = selected;
+  }
+
+  const metaLabel = document.getElementById('metaLabel');
+  if (metaLabel) {
+    const allLabels = Array.from(new Set(Object.values(labelMap).flat())).filter(Boolean).sort((a, b) => String(a).localeCompare(String(b)));
+    const selectedMeta = metaLabel.value;
+    metaLabel.innerHTML = allLabels.map((label) => `<option value="${safeText(label)}">${safeText(label)}</option>`).join('');
+    if (selectedMeta && allLabels.includes(selectedMeta)) metaLabel.value = selectedMeta;
+    syncMetaEditorFields();
+  }
 }
 
 function clearForm() {
   document.getElementById("type").value = "expense";
   document.getElementById("amount").value = "";
-  document.getElementById("account").value = "Cash";
+  document.getElementById("account").value = accounts[0] || 'Cash';
+  document.getElementById('transactionDate').value = getTodayIsoDate();
+  document.getElementById('notes').value = '';
+  document.getElementById('repeatEvery').value = 'none';
+  document.getElementById('isScheduled').checked = false;
+  document.getElementById('isSplit').checked = false;
+  const splitRows = document.getElementById('splitRows');
+  if (splitRows) splitRows.innerHTML = '';
+  toggleSplitEditor();
+  editingIndex = null;
+  setEditMode(false);
   updateLabels();
 }
 
@@ -663,8 +2073,12 @@ function addTransaction() {
   const amount = parseFloat(document.getElementById("amount").value);
   const label = document.getElementById("label").value;
   const accountRaw = document.getElementById("account").value;
+  const transactionDate = document.getElementById('transactionDate').value;
+  const notes = document.getElementById('notes').value.trim();
+  const repeatEvery = document.getElementById('repeatEvery').value || 'none';
+  const userScheduled = !!document.getElementById('isScheduled').checked;
   // store canonical account values (Cash/Bank)
-  const account = /cash/i.test(normalizeAccount(accountRaw)) ? 'Cash' : 'Bank';
+  const account = accounts.includes(accountRaw) ? accountRaw : (/cash/i.test(normalizeAccount(accountRaw)) ? 'Cash' : 'Bank');
   
   if (!amount || amount <= 0) {
     alert("Please enter a valid amount");
@@ -675,36 +2089,77 @@ function addTransaction() {
     alert("Please select a label");
     return;
   }
+
+  if (!transactionDate) {
+    alert('Please select a date');
+    return;
+  }
+
+  const splits = readSplitValues(amount);
+  if (document.getElementById('isSplit').checked && splits === null) {
+    return;
+  }
+
+  const scheduled = userScheduled || transactionDate > getTodayIsoDate();
   
   const transaction = {
-    type: type,
+    id: `tx-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    type: normalizeTransactionType(type),
     amount: amount,
     label: label,
     account: account,
-    date: new Date().toLocaleDateString()
+    date: transactionDate,
+    notes: notes,
+    repeatEvery: repeatEvery,
+    scheduled: scheduled,
+    splits: splits || [],
+    createdAt: new Date().toISOString()
   };
-  
-  data.push(transaction);
+
+  if (editingIndex !== null && data[editingIndex]) {
+    transaction.createdAt = data[editingIndex].createdAt || transaction.createdAt;
+    transaction.id = data[editingIndex].id || transaction.id;
+    data[editingIndex] = transaction;
+    showToast('Transaction updated', 'success');
+  } else {
+    data.push(transaction);
+    showToast('Transaction added', 'success');
+  }
   saveData();
   render();
   clearForm();
 }
 
 function deleteTransaction(index) {
+  if (!data[index]) return;
+  lastDeletedTransaction = {
+    index,
+    transaction: { ...data[index] }
+  };
   data.splice(index, 1);
   saveData();
   render();
+  showUndoDeleteBanner();
+  if (undoDeleteTimer) clearTimeout(undoDeleteTimer);
+  undoDeleteTimer = setTimeout(() => {
+    lastDeletedTransaction = null;
+    showUndoDeleteBanner();
+  }, 8000);
+  showToast('Transaction deleted', 'warning');
 }
 
 function render() {
   const list = document.getElementById("list");
-  list.innerHTML = "";
+  if (list) {
+    list.innerHTML = "";
+  }
   
   let cashBalance = 0;
   let bankBalance = 0;
+  const visibleTransactions = getVisibleTransactions();
   
   // Calculate balances
-  data.forEach(t => {
+  visibleTransactions.forEach(t => {
     let amount = parseFloat(t.amount);
     if (t.type === "income") {
       const acc = normalizeAccount(t.account);
@@ -719,51 +2174,137 @@ function render() {
     }
   });
   
-  // Display transactions in reverse order (newest first)
-  if (data.length === 0) {
-    list.innerHTML = '<div class="empty-state"><p>No transactions yet. Add one to get started!</p></div>';
-  } else {
-    for (let i = data.length - 1; i >= 0; i--) {
-      const t = data[i];
+  const visibleRows = getFilteredSortedTransactions().filter(({ transaction }) => !isScheduledFuture(transaction));
+  renderDueSoon();
+  renderQuickAddRecent();
+  renderBudgetStatus();
+  renderGoals();
+  renderTrendAndComparison(cashBalance, bankBalance);
+  showUndoDeleteBanner();
+  maybeNotifyDueSoon();
+
+  if (list) {
+    if (data.length === 0) {
+      list.innerHTML = '<div class="empty-state"><p>No transactions yet. Add one to get started!</p><button class="empty-action btn-primary" type="button" onclick="document.getElementById(\'amount\').focus()">Add your first transaction</button></div>';
+    } else if (visibleRows.length === 0) {
+      list.innerHTML = '<div class="empty-state"><p>No transactions match your current filters.</p></div>';
+    } else {
+    visibleRows.forEach(({ transaction: t, index: i }) => {
       const li = document.createElement("li");
       li.className = `transaction-item ${t.type}`;
       
       const info = document.createElement("div");
       info.className = "transaction-info";
-      info.innerHTML = `
-        <div class="transaction-date">${t.date}</div>
-        <div class="transaction-label">${t.label}</div>
-      `;
+      const dateDiv = document.createElement("div");
+      dateDiv.className = "transaction-date";
+      dateDiv.textContent = String(t.date || "");
+
+      const labelDiv = document.createElement("div");
+      labelDiv.className = "transaction-label";
+      const labelDisplay = getLabelDisplay(t.label || '');
+      labelDiv.textContent = `${labelDisplay.icon ? labelDisplay.icon + ' ' : ''}${String(t.label || '')}`;
+      if (labelDisplay.color) {
+        labelDiv.style.color = labelDisplay.color;
+      }
+
+      if (Array.isArray(t.splits) && t.splits.length) {
+        const splitBadge = document.createElement('span');
+        splitBadge.style.fontSize = '11px';
+        splitBadge.style.marginLeft = '8px';
+        splitBadge.style.padding = '2px 6px';
+        splitBadge.style.background = '#e8eefb';
+        splitBadge.style.borderRadius = '999px';
+        splitBadge.textContent = 'Split';
+        labelDiv.appendChild(splitBadge);
+      }
+
+      if (t.repeatEvery && t.repeatEvery !== 'none') {
+        const repeatBadge = document.createElement('span');
+        repeatBadge.style.fontSize = '11px';
+        repeatBadge.style.marginLeft = '6px';
+        repeatBadge.style.padding = '2px 6px';
+        repeatBadge.style.background = '#f0f4ff';
+        repeatBadge.style.borderRadius = '999px';
+        repeatBadge.textContent = t.repeatEvery;
+        labelDiv.appendChild(repeatBadge);
+      }
+
+      info.appendChild(dateDiv);
+      info.appendChild(labelDiv);
+
+      if (t.notes) {
+        const notesDiv = document.createElement('div');
+        notesDiv.className = 'transaction-note';
+        notesDiv.textContent = String(t.notes || '');
+        info.appendChild(notesDiv);
+      }
       
       const amount = document.createElement("div");
       amount.className = `transaction-amount ${t.type}`;
-      amount.textContent = (t.type === "expense" ? "- " : "+ ") + "$" + parseFloat(t.amount).toFixed(2);
+      const signedPrimary = (t.type === "expense" ? "- " : "+ ") + formatMoneyFull(t.amount);
+      const secondary = toSecondaryCurrency(t.amount);
+      amount.innerHTML = secondary
+        ? `${safeText(signedPrimary)}<div style="font-size:11px; color:#6f7aa0;">≈ ${safeText(secondary)}</div>`
+        : safeText(signedPrimary);
+
+      const actions = document.createElement('div');
+      actions.className = 'transaction-actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn-edit';
+      editBtn.textContent = '✏️';
+      editBtn.title = 'Edit transaction';
+      editBtn.setAttribute('aria-label', `Edit ${String(t.label || 'transaction')}`);
+      editBtn.onclick = () => startEditTransaction(i);
       
       const deleteBtn = document.createElement("button");
       deleteBtn.className = "btn-delete";
       deleteBtn.textContent = "🗑️";
       deleteBtn.title = "Delete transaction";
+      deleteBtn.setAttribute('aria-label', `Delete ${String(t.label || 'transaction')}`);
       deleteBtn.onclick = () => deleteTransaction(i);
       
       li.appendChild(info);
       li.appendChild(amount);
-      li.appendChild(deleteBtn);
+      actions.appendChild(editBtn);
+      actions.appendChild(deleteBtn);
+      li.appendChild(actions);
       list.appendChild(li);
+    });
     }
   }
   
   // Update balance displays
-  document.getElementById("cash").textContent = cashBalance.toFixed(2);
-  document.getElementById("bank").textContent = bankBalance.toFixed(2);
+  document.getElementById("cash").textContent = formatMoney(cashBalance);
+  document.getElementById("bank").textContent = formatMoney(bankBalance);
 }
 
 // ===== INITIALIZE =====
 document.addEventListener("DOMContentLoaded", function() {
-  // Reload labels in case they were updated in another tab
-  let stored = localStorage.getItem("financeLabels");
-  if (stored) {
-    labelMap = JSON.parse(stored);
+  if (typeof window.showSkeleton === 'function') {
+    window.showSkeleton('#list', 5);
   }
+
+  initAdvancedPanels();
+
+  if (typeof loadData === 'function') {
+    loadData();
+  } else {
+    let stored = localStorage.getItem("financeLabels");
+    if (stored) {
+      labelMap = JSON.parse(stored);
+    }
+  }
+
+  data.forEach((tx) => ensureTransactionId(tx));
+  processScheduledTransactions();
+  processRecurringTransactions();
+
+  wireTransactionTools();
+  document.getElementById('transactionDate').value = getTodayIsoDate();
+  populateAccountOptions();
+  renderCurrencySettings();
+  addSplitRow();
   
   updateLabels();
   render();
@@ -771,8 +2312,31 @@ document.addEventListener("DOMContentLoaded", function() {
 
 // Register service worker for offline support
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('service-worker.js').then(reg => {
+  navigator.serviceWorker.register('service-worker.js?v=20260215-v5').then(reg => {
     console.log('✓ Service Worker registered');
+
+    reg.update();
+
+    if (reg.waiting) {
+      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      if (!newWorker) return;
+
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          newWorker.postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    });
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (window.__swReloaded) return;
+      window.__swReloaded = true;
+      window.location.reload();
+    });
   }).catch(err => {
     console.log('Service Worker registration failed:', err);
   });
@@ -791,8 +2355,9 @@ window.addEventListener('load', () => {
 });
 
 // Logout function
-function logoutUser() {
-  if (confirm('Are you sure you want to logout?')) {
+async function logoutUser() {
+  const confirmed = await askConfirm('Are you sure you want to logout?', 'Logout');
+  if (confirmed) {
     if (window.CloudSync) {
       window.CloudSync.logout();
     } else {
@@ -887,7 +2452,7 @@ function showAccountInfo() {
 
 // Clear all data and start fresh
 async function clearAllData() {
-  const confirmation = confirm(
+  const confirmation = await askConfirm(
     '⚠️ DELETE ALL DATA?\n\n' +
     '━━━━━━━━━━━━━━━━━━━━━\n\n' +
     'This will:\n' +
@@ -904,7 +2469,7 @@ async function clearAllData() {
   if (!confirmation) return;
   
   // Double confirmation
-  const doubleCheck = confirm(
+  const doubleCheck = await askConfirm(
     '🚨 FINAL WARNING!\n\n' +
     'All your financial data will be PERMANENTLY deleted!\n\n' +
     'Type YES in your mind and click OK to continue.'
@@ -948,7 +2513,7 @@ async function clearAllData() {
     );
     
     // Ask what to do next
-    const shouldLogout = confirm('Do you want to LOGOUT now?\n\nYes = Logout\nNo = Stay logged in with empty account');
+    const shouldLogout = await askConfirm('Do you want to LOGOUT now?\n\nYes = Logout\nNo = Stay logged in with empty account', 'Logout Now?');
     
     if (shouldLogout) {
       // Logout
@@ -972,7 +2537,7 @@ async function clearAllData() {
 
 // Delete account permanently
 async function deleteAccount() {
-  const warning = confirm(
+  const warning = await askConfirm(
     '🔥 DELETE ACCOUNT PERMANENTLY?\n\n' +
     '━━━━━━━━━━━━━━━━━━━━━\n\n' +
     '⚠️ THIS WILL:\n\n' +

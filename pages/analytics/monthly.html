@@ -3,23 +3,45 @@
 <head>
   <title>Monthly Analytics - Finance Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script type="module" src="../../firebase-config.js"></script>
+  <script type="module">
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+    document.documentElement.style.visibility = 'hidden';
+
+    const waitForAuth = setInterval(() => {
+      if (window.firebaseAuth) {
+        clearInterval(waitForAuth);
+        onAuthStateChanged(window.firebaseAuth, (user) => {
+          if (!user) {
+            window.location.replace('../../login.html');
+          } else {
+            document.documentElement.style.visibility = 'visible';
+          }
+        });
+      }
+    }, 100);
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <link rel="stylesheet" href="../../styles/main.css">
+  <script src="../../js/app-shell.js"></script>
   <script src="../../storage.js"></script>
   <script src="../../js/utils.js"></script>
+  <script src="../../js/ui-enhancements.js"></script>
   <script src="../../js/charts.js"></script>
 </head>
 <body>
 
 <div style="text-align: center; color: white; margin-bottom: 20px;">
   <h1>📅 Monthly Analytics</h1>
+  <p style="font-size: 13px; opacity: 0.9;">Home &gt; Analytics &gt; Monthly</p>
 </div>
 
-<div style="max-width: 1400px; margin: 0 auto;">
+<div id="mainContent" style="max-width: 1400px; margin: 0 auto;">
   <div class="top-nav">
-    <a href="../../index.html"><button class="btn-back">← Back to Tracker</button></a>
-    <a href="index.html"><button style="background:#2196F3; color:white;">📊 Overall Analytics</button></a>
-    <a href="compare.html"><button style="background:#FF5722; color:white;">📊 Compare Labels</button></a>
+    <a href="../../index.html"><button class="btn-back" aria-label="Back to tracker">← Back to Tracker</button></a>
+    <a href="index.html"><button style="background:#2196F3; color:white;" aria-label="Open overall analytics">📊 Overall Analytics</button></a>
+    <a href="compare.html"><button style="background:#FF5722; color:white;" aria-label="Open compare labels">📊 Compare Labels</button></a>
   </div>
 
   <!-- Month Selector -->
@@ -29,7 +51,7 @@
       <select id="monthSelect" onchange="updateMonthlyAnalytics()" style="padding: 10px; font-size: 16px;">
         <option value="">-- Current Month --</option>
       </select>
-      <button onclick="resetMonthlyData()" class="btn-danger">🗑️ Reset Month</button>
+      <button onclick="resetMonthlyData()" class="btn-danger" aria-label="Reset selected month data">🗑️ Reset Month</button>
     </div>
   </div>
 
@@ -97,6 +119,13 @@
 </div>
 
 <script>
+async function askConfirm(message, title) {
+  if (typeof window.uiConfirm === 'function') {
+    return window.uiConfirm(message, title || 'Please Confirm');
+  }
+  return Promise.resolve(confirm(message));
+}
+
 function getMonthKey(dateStr) {
   const [month, day, year] = dateStr.split('/');
   return year + '-' + String(month).padStart(2, '0');
@@ -183,13 +212,18 @@ function updateMonthlyAnalytics() {
   const tbody = document.getElementById('monthlyTransactionsBody');
   tbody.innerHTML = '';
   transactions.forEach(t => {
+    const safeDate = typeof window.escapeHtml === 'function' ? window.escapeHtml(t.date) : String(t.date || '');
+    const safeType = typeof window.escapeHtml === 'function' ? window.escapeHtml(t.type) : String(t.type || '');
+    const safeLabel = typeof window.escapeHtml === 'function' ? window.escapeHtml(t.label) : String(t.label || '');
+    const safeAccount = typeof window.escapeHtml === 'function' ? window.escapeHtml(t.account) : String(t.account || '');
+
     const row = document.createElement('tr');
     row.style.borderBottom = '1px solid #eee';
     row.innerHTML = `
-      <td style="padding: 10px;">${t.date}</td>
-      <td style="padding: 10px;"><strong>${t.type}</strong></td>
-      <td style="padding: 10px;">${t.label}</td>
-      <td style="padding: 10px;">${t.account}</td>
+      <td style="padding: 10px;">${safeDate}</td>
+      <td style="padding: 10px;"><strong>${safeType}</strong></td>
+      <td style="padding: 10px;">${safeLabel}</td>
+      <td style="padding: 10px;">${safeAccount}</td>
       <td style="padding: 10px; text-align: right; font-weight: bold;">$${parseFloat(t.amount).toFixed(2)}</td>
     `;
     tbody.appendChild(row);
@@ -278,8 +312,9 @@ function createMonthlyCharts(transactions) {
   });
 }
 
-function resetMonthlyData() {
-  if (!confirm('Delete all transactions for the current month?')) return;
+async function resetMonthlyData() {
+  const approved = await askConfirm('Delete all transactions for the current month?', 'Reset Month');
+  if (!approved) return;
   
   const now = new Date();
   const currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');

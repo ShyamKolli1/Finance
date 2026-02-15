@@ -15,7 +15,8 @@ function getCurrentMonthKey() {
 }
 
 function formatCurrency(amount) {
-  return '$' + parseFloat(amount).toFixed(2);
+  const value = Number(amount || 0);
+  return '$' + value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatMonthName(monthKey) {
@@ -78,8 +79,8 @@ function getAccountBreakdown(transactions) {
 
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(
-    () => alert('Copied to clipboard!'),
-    (err) => alert('Failed to copy: ' + err)
+    () => (typeof window.notify === 'function' ? window.notify('Copied to clipboard!', 'success') : alert('Copied to clipboard!')),
+    (err) => (typeof window.notify === 'function' ? window.notify('Failed to copy: ' + err, 'error') : alert('Failed to copy: ' + err))
   );
 }
 

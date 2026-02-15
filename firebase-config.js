@@ -1,7 +1,15 @@
 // Firebase Configuration
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signOut,
+  deleteUser,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // Your Firebase configuration
 const firebaseConfig = {
@@ -33,5 +41,8 @@ window.firebaseDeleteDoc = deleteDoc;
 window.firebaseOnAuthStateChanged = onAuthStateChanged;
 window.firebaseSignOut = signOut;
 window.firebaseDeleteUser = deleteUser;
+window.firebaseUpdatePassword = updatePassword;
+window.firebaseReauthenticateWithCredential = reauthenticateWithCredential;
+window.firebaseEmailAuthProvider = EmailAuthProvider;
 
 console.log('✅ Firebase initialized successfully!');

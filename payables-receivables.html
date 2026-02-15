@@ -34,6 +34,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   
   <link rel="stylesheet" href="styles/main.css">
+  <script src="js/app-shell.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -246,6 +247,7 @@
     .items-list {
       display: grid;
       gap: 20px;
+      min-height: 180px;
     }
     
     /* Category Card Styles */
@@ -464,6 +466,79 @@
       font-weight: 600;
       margin-left: 10px;
     }
+
+    .list-filters {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .due-chip {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 3px 8px;
+      margin-left: 6px;
+    }
+
+    .due-chip.overdue {
+      background: #ffebee;
+      color: #d32f2f;
+    }
+
+    .due-chip.soon {
+      background: #fff8e1;
+      color: #f57c00;
+    }
+
+    .due-chip.ok {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .payment-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 3000;
+      padding: 16px;
+    }
+
+    .payment-modal-card {
+      width: min(460px, 100%);
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 18px 44px rgba(0,0,0,0.28);
+    }
+
+    .payment-modal-card h3 {
+      margin-bottom: 10px;
+      color: #1d2952;
+    }
+
+    .payment-modal-card p {
+      margin-bottom: 12px;
+      color: #4b577d;
+      line-height: 1.45;
+    }
+
+    .payment-modal-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .payment-modal-row button {
+      flex: 1;
+      min-height: 44px;
+      margin: 0;
+    }
     
     @media (max-width: 968px) {
       .main-grid {
@@ -546,12 +621,16 @@
         flex: 1;
         padding: 12px 16px;
       }
+
+      .list-filters {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
 
-<div class="container">
+<div class="container" id="mainContent">
   <!-- Header -->
   <div class="header">
     <h1>📊 Payables & Receivables</h1>
@@ -612,6 +691,11 @@
           <label for="receivableDate">Date</label>
           <input type="date" id="receivableDate" required>
         </div>
+
+        <div class="form-group">
+          <label for="receivableDueDate">Due Date (optional)</label>
+          <input type="date" id="receivableDueDate">
+        </div>
         
         <div class="form-group">
           <label for="receivableNotes">Notes (optional)</label>
@@ -645,6 +729,11 @@
           <label for="payableDate">Date</label>
           <input type="date" id="payableDate" required>
         </div>
+
+        <div class="form-group">
+          <label for="payableDueDate">Due Date (optional)</label>
+          <input type="date" id="payableDueDate">
+        </div>
         
         <div class="form-group">
           <label for="payableNotes">Notes (optional)</label>
@@ -666,6 +755,12 @@
     <!-- Receivables List -->
     <div class="card" style="margin-bottom: 20px;">
       <h2>💰 Receivables (People Owe You)</h2>
+      <div class="list-filters">
+        <input id="receivableSearch" type="text" placeholder="Search by person" aria-label="Filter receivables by person">
+        <select id="receivableLabelFilter" aria-label="Filter receivables by label">
+          <option value="all">All labels</option>
+        </select>
+      </div>
       <div id="receivablesList" class="items-list"></div>
     </div>
   </div>
@@ -680,6 +775,12 @@
     <!-- Payables List -->
     <div class="card" style="margin-bottom: 20px;">
       <h2>💸 Payables (You Owe People)</h2>
+      <div class="list-filters">
+        <input id="payableSearch" type="text" placeholder="Search by person" aria-label="Filter payables by person">
+        <select id="payableLabelFilter" aria-label="Filter payables by label">
+          <option value="all">All labels</option>
+        </select>
+      </div>
       <div id="payablesList" class="items-list"></div>
     </div>
   </div>
@@ -746,7 +847,163 @@
 </div>
 
 <script src="storage.js"></script>
+<script src="js/ui-enhancements.js"></script>
 <script>
+function safeText(value) {
+  if (typeof window.escapeHtml === 'function') {
+    return window.escapeHtml(value);
+  }
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function askConfirm(message, title) {
+  if (typeof window.uiConfirm === 'function') {
+    return window.uiConfirm(message, title || 'Please Confirm');
+  }
+  return Promise.resolve(confirm(message));
+}
+
+let receivableSearchTerm = '';
+let payableSearchTerm = '';
+let receivableLabelFilter = 'all';
+let payableLabelFilter = 'all';
+
+function showToast(message, kind) {
+  if (typeof window.uiToast === 'function') {
+    window.uiToast(message, kind || 'info');
+  }
+}
+
+function formatDateInputValue(value) {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toISOString().slice(0, 10);
+}
+
+function getDueStatusText(dueDate) {
+  const dateText = formatDateInputValue(dueDate);
+  if (!dateText) return '';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dateText);
+  due.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((due.getTime() - today.getTime()) / 86400000);
+
+  if (diffDays < 0) {
+    return `<span class="due-chip overdue">Overdue by ${Math.abs(diffDays)}d</span>`;
+  }
+  if (diffDays <= 7) {
+    return `<span class="due-chip soon">Due in ${diffDays}d</span>`;
+  }
+  return `<span class="due-chip ok">Due in ${diffDays}d</span>`;
+}
+
+function setLabelFilterOptions(selectId, items) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  const current = select.value || 'all';
+  const labels = Array.from(new Set(items.map((item) => String(item.label || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  select.innerHTML = '<option value="all">All labels</option>' + labels.map((label) => `<option value="${safeText(label)}">${safeText(label)}</option>`).join('');
+
+  if (labels.includes(current)) select.value = current;
+  else select.value = 'all';
+}
+
+function askSettlementAmount(item, type) {
+  return new Promise((resolve) => {
+    const fullAmount = Number(item.amount || 0);
+    const overlay = document.createElement('div');
+    overlay.className = 'payment-modal';
+
+    const card = document.createElement('div');
+    card.className = 'payment-modal-card';
+    const actionText = type === 'owe' ? 'received' : 'paid';
+    card.innerHTML = `
+      <h3>Record Payment</h3>
+      <p>${safeText(item.person)} • Current amount: <strong>$${fullAmount.toFixed(2)}</strong></p>
+      <p>Enter the amount ${actionText} now.</p>
+      <input id="settlementAmountInput" type="number" min="0.01" step="0.01" value="${fullAmount.toFixed(2)}" aria-label="Settlement amount">
+      <div class="payment-modal-row">
+        <button type="button" id="settlementFullBtn" style="background:#e3f2fd; color:#0d47a1;">Full amount</button>
+        <button type="button" id="settlementCancelBtn" style="background:#f5f5f5; color:#333;">Cancel</button>
+        <button type="button" id="settlementApplyBtn" style="background:#2196F3; color:#fff;">Apply</button>
+      </div>
+    `;
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    const input = card.querySelector('#settlementAmountInput');
+    const fullBtn = card.querySelector('#settlementFullBtn');
+    const cancelBtn = card.querySelector('#settlementCancelBtn');
+    const applyBtn = card.querySelector('#settlementApplyBtn');
+
+    const close = (value) => {
+      overlay.remove();
+      resolve(value);
+    };
+
+    fullBtn.addEventListener('click', () => {
+      input.value = fullAmount.toFixed(2);
+      input.focus();
+    });
+
+    cancelBtn.addEventListener('click', () => close(null));
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) close(null);
+    });
+    applyBtn.addEventListener('click', () => {
+      const value = Number(input.value);
+      close(value);
+    });
+
+    input.focus();
+    input.select();
+  });
+}
+
+function wireListFilters() {
+  const receivableSearch = document.getElementById('receivableSearch');
+  const payableSearch = document.getElementById('payableSearch');
+  const receivableLabel = document.getElementById('receivableLabelFilter');
+  const payableLabel = document.getElementById('payableLabelFilter');
+
+  if (receivableSearch) {
+    receivableSearch.addEventListener('input', () => {
+      receivableSearchTerm = receivableSearch.value || '';
+      renderAll();
+    });
+  }
+
+  if (payableSearch) {
+    payableSearch.addEventListener('input', () => {
+      payableSearchTerm = payableSearch.value || '';
+      renderAll();
+    });
+  }
+
+  if (receivableLabel) {
+    receivableLabel.addEventListener('change', () => {
+      receivableLabelFilter = receivableLabel.value || 'all';
+      renderAll();
+    });
+  }
+
+  if (payableLabel) {
+    payableLabel.addEventListener('change', () => {
+      payableLabelFilter = payableLabel.value || 'all';
+      renderAll();
+    });
+  }
+}
+
 // Initialize today's date in forms
 document.getElementById('receivableDate').valueAsDate = new Date();
 document.getElementById('payableDate').valueAsDate = new Date();
@@ -784,7 +1041,13 @@ function addReceivable(event) {
   const amount = parseFloat(document.getElementById('receivableAmount').value);
   const label = document.getElementById('receivableLabel').value;
   const date = document.getElementById('receivableDate').value;
+  const dueDate = document.getElementById('receivableDueDate').value;
   const notes = document.getElementById('receivableNotes').value.trim();
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    alert('Please enter a valid amount greater than 0');
+    return;
+  }
   
   const item = {
     id: Date.now(),
@@ -793,6 +1056,7 @@ function addReceivable(event) {
     amount: amount,
     label: label,
     date: date,
+    dueDate: dueDate || '',
     notes: notes,
     settled: false,
     createdAt: new Date().toISOString()
@@ -810,7 +1074,7 @@ function addReceivable(event) {
   document.getElementById('receivableDate').valueAsDate = new Date();
   
   renderAll();
-  alert(`✅ Receivable added: ${person} owes you $${amount.toFixed(2)}`);
+  showToast(`Receivable added: ${person} owes you $${amount.toFixed(2)}`, 'success');
 }
 
 // Add Payable
@@ -821,7 +1085,13 @@ function addPayable(event) {
   const amount = parseFloat(document.getElementById('payableAmount').value);
   const label = document.getElementById('payableLabel').value;
   const date = document.getElementById('payableDate').value;
+  const dueDate = document.getElementById('payableDueDate').value;
   const notes = document.getElementById('payableNotes').value.trim();
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    alert('Please enter a valid amount greater than 0');
+    return;
+  }
   
   const item = {
     id: Date.now(),
@@ -830,6 +1100,7 @@ function addPayable(event) {
     amount: amount,
     label: label,
     date: date,
+    dueDate: dueDate || '',
     notes: notes,
     settled: false,
     createdAt: new Date().toISOString()
@@ -847,28 +1118,19 @@ function addPayable(event) {
   document.getElementById('payableDate').valueAsDate = new Date();
   
   renderAll();
-  alert(`✅ Payable added: You owe ${person} $${amount.toFixed(2)}`);
+  showToast(`Payable added: You owe ${person} $${amount.toFixed(2)}`, 'success');
 }
 
 // Mark as settled (with partial payment option)
-function markAsSettled(id, type) {
+async function markAsSettled(id, type) {
   const item = data.find(d => d.id === id);
   if (!item) return;
   
   const fullAmount = item.amount;
-  const promptMessage = type === 'owe'
-    ? `${item.person} owes you $${fullAmount.toFixed(2)}\n\nEnter the amount they paid (or leave blank for full amount):`
-    : `You owe ${item.person} $${fullAmount.toFixed(2)}\n\nEnter the amount you paid back (or leave blank for full amount):`;
+  const paymentAmount = await askSettlementAmount(item, type);
+  if (paymentAmount === null) return;
   
-  const paymentInput = prompt(promptMessage, fullAmount.toFixed(2));
-  
-  // User cancelled
-  if (paymentInput === null) return;
-  
-  const paymentAmount = parseFloat(paymentInput);
-  
-  // Validate input
-  if (isNaN(paymentAmount) || paymentAmount <= 0) {
+  if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
     alert('❌ Invalid amount. Please enter a valid positive number.');
     return;
   }
@@ -888,9 +1150,8 @@ function markAsSettled(id, type) {
       ? `✅ Marked as received! ${item.person} paid you $${paymentAmount.toFixed(2)}`
       : `✅ Marked as paid! You paid ${item.person} $${paymentAmount.toFixed(2)}`;
     
-    alert(message);
+    showToast(message, 'success');
   } 
-  // Partial payment - reduce the amount
   else {
     const remaining = fullAmount - paymentAmount;
     item.amount = remaining;
@@ -907,7 +1168,7 @@ function markAsSettled(id, type) {
       ? `✅ Partial payment received! ${item.person} paid $${paymentAmount.toFixed(2)}\n\nRemaining: $${remaining.toFixed(2)}`
       : `✅ Partial payment made! You paid ${item.person} $${paymentAmount.toFixed(2)}\n\nRemaining: $${remaining.toFixed(2)}`;
     
-    alert(message);
+    showToast(message, 'success');
   }
   
   saveData();
@@ -921,8 +1182,9 @@ function markAsSettled(id, type) {
 }
 
 // Delete item
-function deleteItem(id) {
-  if (confirm('Are you sure you want to delete this item?')) {
+async function deleteItem(id) {
+  const approved = await askConfirm('Are you sure you want to delete this item?', 'Delete Item');
+  if (approved) {
     const index = data.findIndex(d => d.id === id);
     if (index !== -1) {
       data.splice(index, 1);
@@ -934,7 +1196,7 @@ function deleteItem(id) {
       }
       
       renderAll();
-      alert('🗑️ Item deleted successfully');
+      showToast('Item deleted successfully', 'warning');
     }
   }
 }
@@ -943,6 +1205,9 @@ function deleteItem(id) {
 function renderAll() {
   const receivables = data.filter(d => d.type === 'owe');
   const payables = data.filter(d => d.type === 'debt');
+
+  setLabelFilterOptions('receivableLabelFilter', receivables);
+  setLabelFilterOptions('payableLabelFilter', payables);
   
   const activeReceivables = receivables.filter(d => !d.settled);
   const activePayables = payables.filter(d => !d.settled);
@@ -1024,14 +1289,24 @@ function groupByCategory(items) {
 // Render receivables list
 function renderReceivables(receivables) {
   const list = document.getElementById('receivablesList');
+  const search = receivableSearchTerm.trim().toLowerCase();
+  const filtered = receivables.filter((item) => {
+    const matchesPerson = !search || String(item.person || '').toLowerCase().includes(search);
+    const matchesLabel = receivableLabelFilter === 'all' || String(item.label || '') === receivableLabelFilter;
+    return matchesPerson && matchesLabel;
+  });
   
   if (receivables.length === 0) {
-    list.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">No receivables yet. Add one above!</div>';
+    list.innerHTML = '<div class="empty-state"><p>No receivables yet. Add one above!</p><button class="empty-action btn-primary" type="button" onclick="document.getElementById(\'receivablePerson\').focus()">Add your first receivable</button></div>';
+    return;
+  }
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state"><p>No receivables match current filters.</p></div>';
     return;
   }
   
-  // Group by category
-  const grouped = groupByCategory(receivables);
+  const grouped = groupByCategory(filtered);
   
   // Sort groups by total amount (highest first)
   const sortedGroups = Object.entries(grouped).sort((a, b) => b[1].total - a[1].total);
@@ -1043,12 +1318,19 @@ function renderReceivables(receivables) {
       return new Date(b.date) - new Date(a.date);
     });
     
-    const itemsHtml = group.items.map(item => `
+    const itemsHtml = group.items.map(item => {
+      const person = safeText(item.person);
+      const note = safeText(item.notes);
+      const itemDate = safeText(formatDate(item.date));
+      const dueDateText = item.dueDate ? safeText(formatDate(item.dueDate)) : '';
+      const dueStatus = item.settled ? '' : getDueStatusText(item.dueDate);
+      return `
       <div class="item ${item.settled ? 'settled' : ''}">
         <div class="item-info">
-          <div class="item-label"><strong>${item.person}</strong> ${item.settled ? '<span class="settled-badge">✓ RECEIVED</span>' : ''}</div>
-          <div class="item-date">📅 ${formatDate(item.date)}</div>
-          ${item.notes ? `<div class="item-date">📝 ${item.notes}</div>` : ''}
+          <div class="item-label"><strong>${person}</strong> ${item.settled ? '<span class="settled-badge">✓ RECEIVED</span>' : ''}</div>
+          <div class="item-date">📅 ${itemDate}</div>
+          ${item.dueDate ? `<div class="item-date">⏳ Due: ${dueDateText} ${dueStatus}</div>` : ''}
+          ${item.notes ? `<div class="item-date">📝 ${note}</div>` : ''}
           ${item.paymentHistory && item.paymentHistory.length > 0 ? `<div class="item-date" style="color: #2196F3; font-weight: 600;">💳 ${item.paymentHistory.length} partial payment(s) received</div>` : ''}
         </div>
         <div class="item-amount">$${item.amount.toFixed(2)}</div>
@@ -1057,12 +1339,15 @@ function renderReceivables(receivables) {
           <button class="btn-delete" onclick="deleteItem(${item.id})">🗑️</button>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
+
+    const categoryLabel = safeText(category);
     
     return `
       <div class="category-card">
         <div class="category-header">
-          <h3>💰 ${category}</h3>
+          <h3>💰 ${categoryLabel}</h3>
           <div class="category-stats">
             <span class="category-count">${group.activeCount} active</span>
             <span class="category-total">$${group.total.toFixed(2)}</span>
@@ -1079,14 +1364,24 @@ function renderReceivables(receivables) {
 // Render payables list
 function renderPayables(payables) {
   const list = document.getElementById('payablesList');
+  const search = payableSearchTerm.trim().toLowerCase();
+  const filtered = payables.filter((item) => {
+    const matchesPerson = !search || String(item.person || '').toLowerCase().includes(search);
+    const matchesLabel = payableLabelFilter === 'all' || String(item.label || '') === payableLabelFilter;
+    return matchesPerson && matchesLabel;
+  });
   
   if (payables.length === 0) {
-    list.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">No payables yet. Add one above!</div>';
+    list.innerHTML = '<div class="empty-state"><p>No payables yet. Add one above!</p><button class="empty-action btn-primary" type="button" onclick="document.getElementById(\'payablePerson\').focus()">Add your first payable</button></div>';
+    return;
+  }
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state"><p>No payables match current filters.</p></div>';
     return;
   }
   
-  // Group by category
-  const grouped = groupByCategory(payables);
+  const grouped = groupByCategory(filtered);
   
   // Sort groups by total amount (highest first)
   const sortedGroups = Object.entries(grouped).sort((a, b) => b[1].total - a[1].total);
@@ -1098,12 +1393,19 @@ function renderPayables(payables) {
       return new Date(b.date) - new Date(a.date);
     });
     
-    const itemsHtml = group.items.map(item => `
+    const itemsHtml = group.items.map(item => {
+      const person = safeText(item.person);
+      const note = safeText(item.notes);
+      const itemDate = safeText(formatDate(item.date));
+      const dueDateText = item.dueDate ? safeText(formatDate(item.dueDate)) : '';
+      const dueStatus = item.settled ? '' : getDueStatusText(item.dueDate);
+      return `
       <div class="item ${item.settled ? 'settled' : ''}">
         <div class="item-info">
-          <div class="item-label"><strong>${item.person}</strong> ${item.settled ? '<span class="settled-badge">✓ PAID</span>' : ''}</div>
-          <div class="item-date">📅 ${formatDate(item.date)}</div>
-          ${item.notes ? `<div class="item-date">📝 ${item.notes}</div>` : ''}
+          <div class="item-label"><strong>${person}</strong> ${item.settled ? '<span class="settled-badge">✓ PAID</span>' : ''}</div>
+          <div class="item-date">📅 ${itemDate}</div>
+          ${item.dueDate ? `<div class="item-date">⏳ Due: ${dueDateText} ${dueStatus}</div>` : ''}
+          ${item.notes ? `<div class="item-date">📝 ${note}</div>` : ''}
           ${item.paymentHistory && item.paymentHistory.length > 0 ? `<div class="item-date" style="color: #2196F3; font-weight: 600;">💳 ${item.paymentHistory.length} partial payment(s) made</div>` : ''}
         </div>
         <div class="item-amount">$${item.amount.toFixed(2)}</div>
@@ -1112,12 +1414,15 @@ function renderPayables(payables) {
           <button class="btn-delete" onclick="deleteItem(${item.id})">🗑️</button>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
+
+    const categoryLabel = safeText(category);
     
     return `
       <div class="category-card">
         <div class="category-header">
-          <h3>💸 ${category}</h3>
+          <h3>💸 ${categoryLabel}</h3>
           <div class="category-stats">
             <span class="category-count">${group.activeCount} active</span>
             <span class="category-total">$${group.total.toFixed(2)}</span>
@@ -1298,16 +1603,21 @@ function renderOverviewLists(activeReceivables, activePayables) {
     if (activeReceivables.length === 0) {
       receivablesList.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">No active receivables</div>';
     } else {
-      receivablesList.innerHTML = activeReceivables.map(item => `
+      receivablesList.innerHTML = activeReceivables.map(item => {
+        const person = safeText(item.person);
+        const label = safeText(item.label);
+        const itemDate = safeText(formatDate(item.date));
+        return `
         <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.person}</div>
-            <div style="font-size: 12px; color: #666;">${item.label} • ${formatDate(item.date)}</div>
+            <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${person}</div>
+            <div style="font-size: 12px; color: #666;">${label} • ${itemDate}</div>
             ${item.paymentHistory && item.paymentHistory.length > 0 ? `<div style="font-size: 11px; color: #2196F3; margin-top: 2px;">💳 ${item.paymentHistory.length} payment(s)</div>` : ''}
           </div>
           <div style="font-size: 18px; font-weight: bold; color: #4CAF50;">$${item.amount.toFixed(2)}</div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
   }
   
@@ -1317,16 +1627,21 @@ function renderOverviewLists(activeReceivables, activePayables) {
     if (activePayables.length === 0) {
       payablesList.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">No active payables</div>';
     } else {
-      payablesList.innerHTML = activePayables.map(item => `
+      payablesList.innerHTML = activePayables.map(item => {
+        const person = safeText(item.person);
+        const label = safeText(item.label);
+        const itemDate = safeText(formatDate(item.date));
+        return `
         <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.person}</div>
-            <div style="font-size: 12px; color: #666;">${item.label} • ${formatDate(item.date)}</div>
+            <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${person}</div>
+            <div style="font-size: 12px; color: #666;">${label} • ${itemDate}</div>
             ${item.paymentHistory && item.paymentHistory.length > 0 ? `<div style="font-size: 11px; color: #2196F3; margin-top: 2px;">💳 ${item.paymentHistory.length} payment(s)</div>` : ''}
           </div>
           <div style="font-size: 18px; font-weight: bold; color: #F44336;">$${item.amount.toFixed(2)}</div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
   }
 }
@@ -1365,7 +1680,11 @@ function showSection(section) {
 }
 
 // Initialize
+if (typeof loadData === 'function') {
+  loadData();
+}
 loadLabels();
+wireListFilters();
 renderAll();
 </script>
 

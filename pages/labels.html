@@ -3,19 +3,41 @@
 <head>
   <title>Manage Labels - Finance Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script type="module" src="../firebase-config.js"></script>
+  <script type="module">
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+    document.documentElement.style.visibility = 'hidden';
+
+    const waitForAuth = setInterval(() => {
+      if (window.firebaseAuth) {
+        clearInterval(waitForAuth);
+        onAuthStateChanged(window.firebaseAuth, (user) => {
+          if (!user) {
+            window.location.replace('../login.html');
+          } else {
+            document.documentElement.style.visibility = 'visible';
+          }
+        });
+      }
+    }, 100);
+  </script>
   <link rel="stylesheet" href="../styles/main.css">
+  <script src="../js/app-shell.js"></script>
   <script src="../storage.js"></script>
+  <script src="../js/ui-enhancements.js"></script>
 </head>
 <body>
 
 <div style="text-align: center; color: white; margin-bottom: 30px;">
   <h1>⚙ Manage Labels</h1>
+  <p style="font-size: 13px; opacity: 0.9;">Home &gt; Manage Labels</p>
 </div>
 
-<div style="max-width: 800px; margin: 0 auto;">
+<div id="mainContent" style="max-width: 800px; margin: 0 auto;">
   <div class="top-nav">
-    <a href="../index.html"><button class="btn-back">← Back to Tracker</button></a>
-    <a href="analytics/"><button style="background:#FF9800; color:white;">📊 Analytics</button></a>
+    <a href="../index.html"><button class="btn-back" aria-label="Back to tracker">← Back to Tracker</button></a>
+    <a href="analytics/"><button style="background:#FF9800; color:white;" aria-label="Open analytics">📊 Analytics</button></a>
   </div>
 
   <div class="card">
@@ -33,17 +55,107 @@
         <option value="income">Income</option>
         <option value="transfer">Transfer</option>
         <option value="saving">Saving</option>
+        <option value="debt">Debt (You owe)</option>
+        <option value="owe">Owe (They owe you)</option>
       </select>
     </div>
     <div style="margin-bottom: 15px;">
       <label for="labelInput"><strong>Label Name:</strong></label>
       <input type="text" id="labelInput" placeholder="Enter label name" />
     </div>
-    <button onclick="addLabel()" style="background:#4CAF50; color:white; width:100%;">➕ Add Label</button>
+    <button onclick="addLabel()" style="background:#4CAF50; color:white; width:100%;" aria-label="Add label">➕ Add Label</button>
+  </div>
+
+  <div class="card">
+    <h2>🏷 Category Style</h2>
+    <div style="display:grid; gap:12px;">
+      <div>
+        <label for="metaLabelSelect"><strong>Label:</strong></label>
+        <select id="metaLabelSelect"></select>
+      </div>
+      <div>
+        <label for="metaIconInput"><strong>Icon (optional):</strong></label>
+        <input type="text" id="metaIconInput" maxlength="2" placeholder="e.g. 🍔">
+      </div>
+      <div>
+        <label for="metaColorInput"><strong>Color (optional):</strong></label>
+        <input type="color" id="metaColorInput" value="#667eea">
+      </div>
+      <button onclick="saveLabelStyle()" style="background:#3f51b5; color:white; width:100%;" aria-label="Save label style">💾 Save Style</button>
+    </div>
   </div>
 </div>
 
 <script>
+const LABEL_META_KEY = 'financeLabelMeta';
+let labelMeta = {};
+
+async function askConfirm(message, title) {
+  if (typeof window.uiConfirm === 'function') {
+    return window.uiConfirm(message, title || 'Please Confirm');
+  }
+  return Promise.resolve(confirm(message));
+}
+
+function parseMetaSafe() {
+  try {
+    const raw = localStorage.getItem(LABEL_META_KEY);
+    labelMeta = raw ? JSON.parse(raw) : {};
+  } catch (_) {
+    labelMeta = {};
+  }
+}
+
+function saveMeta() {
+  localStorage.setItem(LABEL_META_KEY, JSON.stringify(labelMeta));
+}
+
+function allLabels() {
+  return Array.from(new Set(Object.values(labelMap).flat().map((value) => String(value || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+
+function renderStyleLabels() {
+  const select = document.getElementById('metaLabelSelect');
+  if (!select) return;
+  const labels = allLabels();
+  const current = select.value;
+  select.innerHTML = labels.map((label) => `<option value="${label.replace(/"/g, '&quot;')}">${label}</option>`).join('');
+  if (current && labels.includes(current)) {
+    select.value = current;
+  }
+  syncStyleInputs();
+}
+
+function syncStyleInputs() {
+  const select = document.getElementById('metaLabelSelect');
+  const iconInput = document.getElementById('metaIconInput');
+  const colorInput = document.getElementById('metaColorInput');
+  if (!select || !iconInput || !colorInput) return;
+  const meta = labelMeta[select.value] || {};
+  iconInput.value = meta.icon || '';
+  colorInput.value = meta.color || '#667eea';
+}
+
+function saveLabelStyle() {
+  const select = document.getElementById('metaLabelSelect');
+  const iconInput = document.getElementById('metaIconInput');
+  const colorInput = document.getElementById('metaColorInput');
+  if (!select || !select.value) return;
+
+  labelMeta[select.value] = {
+    icon: String(iconInput.value || '').trim(),
+    color: String(colorInput.value || '').trim()
+  };
+
+  saveMeta();
+  updateLabelList();
+  if (typeof window.uiToast === 'function') {
+    window.uiToast('Label style saved', 'success');
+  } else {
+    alert('Label style saved');
+  }
+}
+
 function updateLabelList() {
   const container = document.getElementById("labelCategories");
   container.innerHTML = "";
@@ -71,7 +183,11 @@ function updateLabelList() {
       labelTag.style.alignItems = "center";
       
       const labelText = document.createElement("span");
-      labelText.textContent = label;
+      const meta = labelMeta[label] || {};
+      labelText.textContent = `${meta.icon ? meta.icon + ' ' : ''}${label}`;
+      if (meta.color) {
+        labelText.style.color = meta.color;
+      }
       
       const deleteBtn = document.createElement("button");
       deleteBtn.textContent = "✕";
@@ -97,6 +213,10 @@ function addLabel() {
   const category = document.getElementById("categorySelect").value;
   const labelInput = document.getElementById("labelInput");
   const newLabel = labelInput.value.trim();
+
+  if (!Array.isArray(labelMap[category])) {
+    labelMap[category] = [];
+  }
   
   if (!newLabel) {
     alert("Please enter a label name");
@@ -112,25 +232,38 @@ function addLabel() {
   saveLabelMap();
   labelInput.value = "";
   updateLabelList();
+  renderStyleLabels();
   alert("Label added!");
 }
 
-function deleteLabel(category, label) {
+async function deleteLabel(category, label) {
   // Check if it's a default label
   if (defaultLabels[category].includes(label)) {
     alert("Cannot delete default labels");
     return;
   }
   
-  if (!confirm("Delete '" + label + "'?")) return;
+  const approved = await askConfirm("Delete '" + label + "'?", 'Delete Label');
+  if (!approved) return;
   
   labelMap[category] = labelMap[category].filter(l => l !== label);
+  delete labelMeta[label];
+  saveMeta();
   saveLabelMap();
   updateLabelList();
+  renderStyleLabels();
 }
 
 // Initialize
-setTimeout(updateLabelList, 100);
+setTimeout(() => {
+  parseMetaSafe();
+  updateLabelList();
+  renderStyleLabels();
+  const styleSelect = document.getElementById('metaLabelSelect');
+  if (styleSelect) {
+    styleSelect.addEventListener('change', syncStyleInputs);
+  }
+}, 100);
 </script>
 
 </body>

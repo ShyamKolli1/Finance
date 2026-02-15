@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes">
+  <meta name="format-detection" content="telephone=no">
+  <title>Transactions - Finance Tracker</title>
+
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="firebase-sync.js"></script>
+
+  <script type="module">
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+    document.documentElement.style.visibility = 'hidden';
+    const waitForAuth = setInterval(() => {
+      if (window.firebaseAuth) {
+        clearInterval(waitForAuth);
+        onAuthStateChanged(window.firebaseAuth, (user) => {
+          if (!user) {
+            window.location.replace('login.html');
+          } else {
+            document.documentElement.style.visibility = 'visible';
+          }
+        });
+      }
+    }, 100);
+  </script>
+
+  <link rel="stylesheet" href="styles/main.css">
+  <script src="js/app-shell.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { text-align: center; color: white; margin-bottom: 24px; }
+    .header h1 { font-size: 30px; margin-bottom: 8px; }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 22px;
+      margin-bottom: 18px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.12);
+    }
+
+    .transactions-tools {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .transactions-export {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .btn-tool {
+      min-height: 42px;
+      width: auto;
+      padding: 8px 12px;
+      margin: 0;
+      font-size: 14px;
+      background: #eef2ff;
+      color: #2f3f86;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .transaction-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .transaction-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid #e7ebf9;
+      border-radius: 10px;
+      background: #f9faff;
+    }
+
+    .transaction-info { flex: 1; }
+    .transaction-date { font-size: 12px; color: #7d86a7; margin-bottom: 4px; }
+    .transaction-label { font-weight: 700; color: #25315f; }
+    .transaction-note { font-size: 12px; color: #66739d; margin-top: 4px; }
+
+    .transaction-amount { font-weight: 700; text-align: right; min-width: 120px; }
+    .transaction-amount.expense { color: #d84c4c; }
+    .transaction-amount.income { color: #2e9b52; }
+
+    .transaction-actions { display: inline-flex; gap: 8px; }
+    .btn-edit, .btn-delete {
+      min-width: 42px;
+      min-height: 42px;
+      margin: 0;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-edit { background: #e6efff; color: #2f65c9; }
+    .btn-delete { background: #ffe7e7; color: #c83f3f; }
+
+    .edit-hint { margin-top: 8px; color: #2f65c9; font-size: 13px; font-weight: 600; display: none; }
+
+    .empty-state { text-align: center; color: #8b93b0; padding: 20px; }
+
+    @media (max-width: 900px) {
+      .transactions-tools, .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="container" id="mainContent">
+  <div class="header">
+    <h1>📋 Transactions</h1>
+  </div>
+
+  <div class="card">
+    <h2>Edit Transaction</h2>
+    <div class="form-grid">
+      <div>
+        <label for="type">Type</label>
+        <select id="type" onchange="updateLabels()">
+          <option value="expense">💸 Expense</option>
+          <option value="income">💵 Income</option>
+          <option value="transfer">🔄 Transfer</option>
+          <option value="saving">🏦 Saving</option>
+        </select>
+      </div>
+      <div>
+        <label for="amount">Amount</label>
+        <input id="amount" type="number" step="0.01" placeholder="Amount">
+      </div>
+      <div>
+        <label for="label">Label</label>
+        <select id="label"></select>
+      </div>
+      <div>
+        <label for="account">Account</label>
+        <select id="account"></select>
+      </div>
+      <div>
+        <label for="transactionDate">Date</label>
+        <input id="transactionDate" type="date">
+      </div>
+      <div>
+        <label for="notes">Notes</label>
+        <input id="notes" type="text" maxlength="180" placeholder="Optional note">
+      </div>
+    </div>
+    <div class="transactions-export" style="margin-top: 12px;">
+      <button class="btn-tool" type="button" onclick="saveTransactionChanges()">Save Changes</button>
+      <button class="btn-tool" type="button" onclick="clearEditForm()">Cancel</button>
+    </div>
+    <div id="editHint" class="edit-hint">Editing selected transaction</div>
+  </div>
+
+  <div class="card">
+    <h2>Recent Transactions</h2>
+    <div class="transactions-export">
+      <button type="button" class="btn-tool" onclick="exportDataAsJson()">⬇️ Export JSON</button>
+      <button type="button" class="btn-tool" onclick="exportDataAsCsv()">⬇️ Export CSV</button>
+      <button type="button" class="btn-tool" onclick="openImportDialog()">⬆️ Import Data</button>
+      <input id="importFile" type="file" accept=".json,.csv" style="display:none;" onchange="handleImportFile(event)">
+    </div>
+    <div class="transactions-tools">
+      <input id="transactionSearch" type="text" placeholder="Search label or notes">
+      <select id="transactionTypeFilter">
+        <option value="all">All types</option>
+        <option value="expense">Expense</option>
+        <option value="income">Income</option>
+        <option value="transfer">Transfer</option>
+        <option value="saving">Saving</option>
+      </select>
+      <select id="transactionSort">
+        <option value="date_desc">Date: Newest</option>
+        <option value="date_asc">Date: Oldest</option>
+        <option value="amount_desc">Amount: High to Low</option>
+        <option value="amount_asc">Amount: Low to High</option>
+        <option value="label_asc">Label: A to Z</option>
+      </select>
+    </div>
+    <ul id="list" class="transaction-list"></ul>
+  </div>
+</div>
+
+<script src="storage.js"></script>
+<script src="js/ui-enhancements.js"></script>
+<script>
+function safeText(value) {
+  if (typeof window.escapeHtml === 'function') return window.escapeHtml(value);
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+async function askConfirm(message, title) {
+  if (typeof window.uiConfirm === 'function') return window.uiConfirm(message, title || 'Please Confirm');
+  return Promise.resolve(confirm(message));
+}
+
+function showToast(message, kind) {
+  if (typeof window.uiToast === 'function') window.uiToast(message, kind || 'info');
+}
+
+function normalizeTransactionType(type) {
+  const allowed = ['income', 'expense', 'transfer', 'saving'];
+  return allowed.includes(type) ? type : 'expense';
+}
+
+function formatMoney(value) {
+  return Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatMoneyFull(value) {
+  return '$' + formatMoney(value);
+}
+
+let editingIndex = null;
+let transactionSearchTerm = '';
+let transactionTypeFilter = 'all';
+let transactionSort = 'date_desc';
+
+function getTransactionTimestamp(transaction) {
+  const candidates = [transaction.createdAt, transaction.date];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const d = new Date(candidate);
+    if (!Number.isNaN(d.getTime())) return d.getTime();
+  }
+  return 0;
+}
+
+function updateLabels() {
+  const type = document.getElementById('type').value;
+  const labelSelect = document.getElementById('label');
+  const labels = labelMap[type] || defaultLabels[type] || [];
+  labelSelect.innerHTML = '';
+  labels.forEach((label) => {
+    const option = document.createElement('option');
+    option.value = label;
+    option.textContent = label;
+    labelSelect.appendChild(option);
+  });
+}
+
+function populateAccounts() {
+  const accountSelect = document.getElementById('account');
+  const unique = new Set(['Cash', 'Bank']);
+  data.forEach((item) => {
+    const account = String(item.account || '').trim();
+    if (account) unique.add(account);
+  });
+  const accounts = Array.from(unique);
+  accountSelect.innerHTML = accounts.map((acc) => `<option value="${safeText(acc)}">${safeText(acc)}</option>`).join('');
+}
+
+function clearEditForm() {
+  editingIndex = null;
+  document.getElementById('type').value = 'expense';
+  updateLabels();
+  document.getElementById('amount').value = '';
+  document.getElementById('transactionDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('notes').value = '';
+  const hint = document.getElementById('editHint');
+  if (hint) hint.style.display = 'none';
+}
+
+function startEdit(index) {
+  const tx = data[index];
+  if (!tx) return;
+  editingIndex = index;
+  document.getElementById('type').value = normalizeTransactionType(tx.type);
+  updateLabels();
+  document.getElementById('label').value = tx.label || '';
+  document.getElementById('amount').value = Number(tx.amount || 0);
+  document.getElementById('account').value = tx.account || 'Cash';
+  document.getElementById('transactionDate').value = (tx.date && !Number.isNaN(new Date(tx.date).getTime())) ? new Date(tx.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+  document.getElementById('notes').value = tx.notes || '';
+  const hint = document.getElementById('editHint');
+  if (hint) hint.style.display = 'block';
+}
+
+function saveTransactionChanges() {
+  if (editingIndex === null || !data[editingIndex]) {
+    showToast('Select a transaction to edit first', 'warning');
+    return;
+  }
+
+  const amount = Number(document.getElementById('amount').value);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    alert('Enter a valid amount greater than 0');
+    return;
+  }
+
+  const updated = {
+    ...data[editingIndex],
+    type: normalizeTransactionType(document.getElementById('type').value),
+    amount,
+    label: document.getElementById('label').value,
+    account: document.getElementById('account').value,
+    date: document.getElementById('transactionDate').value,
+    notes: document.getElementById('notes').value.trim()
+  };
+
+  data[editingIndex] = updated;
+  saveData();
+  render();
+  clearEditForm();
+  showToast('Transaction updated', 'success');
+}
+
+function deleteTransaction(index) {
+  if (!data[index]) return;
+  data.splice(index, 1);
+  saveData();
+  render();
+  showToast('Transaction deleted', 'warning');
+}
+
+function getFilteredSortedTransactions() {
+  const rows = data
+    .map((transaction, index) => ({ transaction, index }))
+    .filter(({ transaction }) => ['income', 'expense', 'transfer', 'saving'].includes(transaction.type));
+
+  const search = transactionSearchTerm.trim().toLowerCase();
+  const filtered = rows.filter(({ transaction }) => {
+    const typeOk = transactionTypeFilter === 'all' || transaction.type === transactionTypeFilter;
+    if (!typeOk) return false;
+    if (!search) return true;
+    const label = String(transaction.label || '').toLowerCase();
+    const notes = String(transaction.notes || '').toLowerCase();
+    return label.includes(search) || notes.includes(search);
+  });
+
+  filtered.sort((a, b) => {
+    const left = a.transaction;
+    const right = b.transaction;
+    if (transactionSort === 'amount_desc') return Number(right.amount || 0) - Number(left.amount || 0);
+    if (transactionSort === 'amount_asc') return Number(left.amount || 0) - Number(right.amount || 0);
+    if (transactionSort === 'label_asc') return String(left.label || '').localeCompare(String(right.label || ''));
+    if (transactionSort === 'date_asc') return getTransactionTimestamp(left) - getTransactionTimestamp(right);
+    return getTransactionTimestamp(right) - getTransactionTimestamp(left);
+  });
+
+  return filtered;
+}
+
+function render() {
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+
+  const rows = getFilteredSortedTransactions();
+  if (!rows.length) {
+    list.innerHTML = '<div class="empty-state">No transactions found for current filters.</div>';
+    return;
+  }
+
+  rows.forEach(({ transaction, index }) => {
+    const li = document.createElement('li');
+    li.className = 'transaction-item';
+
+    const info = document.createElement('div');
+    info.className = 'transaction-info';
+    info.innerHTML = `
+      <div class="transaction-date">${safeText(String(transaction.date || ''))}</div>
+      <div class="transaction-label">${safeText(String(transaction.label || ''))}</div>
+      ${transaction.notes ? `<div class="transaction-note">${safeText(String(transaction.notes))}</div>` : ''}
+    `;
+
+    const amount = document.createElement('div');
+    amount.className = `transaction-amount ${transaction.type === 'expense' ? 'expense' : 'income'}`;
+    amount.textContent = `${transaction.type === 'expense' ? '- ' : '+ '}${formatMoneyFull(transaction.amount)}`;
+
+    const actions = document.createElement('div');
+    actions.className = 'transaction-actions';
+    actions.innerHTML = `
+      <button class="btn-edit" title="Edit" aria-label="Edit" type="button">✏️</button>
+      <button class="btn-delete" title="Delete" aria-label="Delete" type="button">🗑️</button>
+    `;
+
+    actions.querySelector('.btn-edit').onclick = () => startEdit(index);
+    actions.querySelector('.btn-delete').onclick = async () => {
+      const ok = await askConfirm('Delete this transaction?', 'Delete Transaction');
+      if (ok) deleteTransaction(index);
+    };
+
+    li.appendChild(info);
+    li.appendChild(amount);
+    li.appendChild(actions);
+    list.appendChild(li);
+  });
+}
+
+function wireTools() {
+  const searchInput = document.getElementById('transactionSearch');
+  const typeFilter = document.getElementById('transactionTypeFilter');
+  const sortSelect = document.getElementById('transactionSort');
+
+  searchInput.addEventListener('input', () => {
+    transactionSearchTerm = searchInput.value || '';
+    render();
+  });
+
+  typeFilter.addEventListener('change', () => {
+    transactionTypeFilter = typeFilter.value || 'all';
+    render();
+  });
+
+  sortSelect.addEventListener('change', () => {
+    transactionSort = sortSelect.value || 'date_desc';
+    render();
+  });
+}
+
+function downloadBlob(content, fileName, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportDataAsJson() {
+  const payload = { exportedAt: new Date().toISOString(), version: 1, transactions: data, labels: labelMap };
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(JSON.stringify(payload, null, 2), `finance-export-${stamp}.json`, 'application/json');
+  localStorage.setItem('financeLastExportAt', new Date().toISOString());
+  showToast('JSON backup downloaded', 'success');
+}
+
+function exportDataAsCsv() {
+  const headers = ['type', 'amount', 'label', 'account', 'date', 'notes', 'createdAt'];
+  const escape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const rows = data.map((tx) => [tx.type, Number(tx.amount || 0), tx.label, tx.account, tx.date, tx.notes || '', tx.createdAt || '']);
+  const lines = [headers.map(escape).join(',')];
+  rows.forEach((row) => lines.push(row.map(escape).join(',')));
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(lines.join('\n'), `finance-export-${stamp}.csv`, 'text/csv;charset=utf-8;');
+  localStorage.setItem('financeLastExportAt', new Date().toISOString());
+  showToast('CSV file downloaded', 'success');
+}
+
+function openImportDialog() {
+  const input = document.getElementById('importFile');
+  input.value = '';
+  input.click();
+}
+
+function parseCsvLine(line) {
+  const out = [];
+  let current = '';
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (quoted && line[i + 1] === '"') { current += '"'; i++; }
+      else quoted = !quoted;
+    } else if (c === ',' && !quoted) {
+      out.push(current); current = '';
+    } else current += c;
+  }
+  out.push(current);
+  return out;
+}
+
+function parseCsvTransactions(csvText) {
+  const lines = csvText.split(/\r?\n/).filter((line) => line.trim() !== '');
+  if (lines.length < 2) return [];
+  const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+  const idx = {
+    type: headers.indexOf('type'), amount: headers.indexOf('amount'), label: headers.indexOf('label'),
+    account: headers.indexOf('account'), date: headers.indexOf('date'), notes: headers.indexOf('notes'), createdAt: headers.indexOf('createdat')
+  };
+
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line);
+    const amount = Number(values[idx.amount]);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    return {
+      id: `tx-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      type: normalizeTransactionType(String(values[idx.type] || '').trim()),
+      amount,
+      label: String(values[idx.label] || '').trim() || 'Other',
+      account: String(values[idx.account] || '').trim() || 'Cash',
+      date: String(values[idx.date] || '').trim() || new Date().toISOString().slice(0, 10),
+      notes: String(values[idx.notes] || '').trim(),
+      createdAt: String(values[idx.createdAt] || '').trim() || new Date().toISOString()
+    };
+  }).filter(Boolean);
+}
+
+function normalizeImportedTransaction(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const amount = Number(raw.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return {
+    ...raw,
+    id: raw.id || `tx-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    type: normalizeTransactionType(String(raw.type || '').trim()),
+    amount,
+    label: String(raw.label || '').trim() || 'Other',
+    account: String(raw.account || '').trim() || 'Cash',
+    date: String(raw.date || '').trim() || new Date().toISOString().slice(0, 10),
+    notes: String(raw.notes || '').trim(),
+    createdAt: String(raw.createdAt || '').trim() || new Date().toISOString()
+  };
+}
+
+function mergeImportedLabels(importedLabels) {
+  if (!importedLabels || typeof importedLabels !== 'object') return;
+  const categories = Object.keys(defaultLabels);
+  categories.forEach((category) => {
+    const incoming = Array.isArray(importedLabels[category]) ? importedLabels[category] : [];
+    const existing = Array.isArray(labelMap[category]) ? labelMap[category] : defaultLabels[category].slice();
+    labelMap[category] = Array.from(new Set([...existing, ...incoming.map((item) => String(item || '').trim()).filter(Boolean)]));
+  });
+}
+
+function replaceLabels(importedLabels) {
+  if (!importedLabels || typeof importedLabels !== 'object') return;
+  const categories = Object.keys(defaultLabels);
+  categories.forEach((category) => {
+    const incoming = Array.isArray(importedLabels[category]) ? importedLabels[category] : defaultLabels[category];
+    labelMap[category] = incoming.map((item) => String(item || '').trim()).filter(Boolean);
+    if (!labelMap[category].length) labelMap[category] = defaultLabels[category].slice();
+  });
+}
+
+async function handleImportFile(event) {
+  const input = event.target;
+  const file = input && input.files ? input.files[0] : null;
+  if (!file) return;
+
+  try {
+    const rawText = await file.text();
+    let incomingTransactions = [];
+    let incomingLabels = null;
+
+    if (file.name.toLowerCase().endsWith('.json')) {
+      const parsed = JSON.parse(rawText);
+      if (Array.isArray(parsed)) incomingTransactions = parsed;
+      else {
+        incomingTransactions = parsed.transactions || parsed.data || [];
+        incomingLabels = parsed.labels || parsed.labelMap || null;
+      }
+    } else {
+      incomingTransactions = parseCsvTransactions(rawText);
+    }
+
+    const sanitized = incomingTransactions.map(normalizeImportedTransaction).filter(Boolean);
+    if (!sanitized.length) {
+      alert('No valid transactions found in selected file.');
+      return;
+    }
+
+    const shouldContinue = await askConfirm(`Import ${sanitized.length} transaction(s) from ${file.name}?`, 'Confirm Import');
+    if (!shouldContinue) return;
+
+    const replaceMode = await askConfirm('Choose import mode:\n\nOK = Replace existing data\nCancel = Merge with existing data', 'Import Mode');
+
+    localStorage.setItem('financeDataBackup', JSON.stringify(data));
+    localStorage.setItem('financeLabelsBackup', JSON.stringify(labelMap));
+    localStorage.setItem('financeImportBackupAt', new Date().toISOString());
+
+    if (replaceMode) {
+      data.length = 0;
+      data.push(...sanitized);
+      replaceLabels(incomingLabels);
+    } else {
+      data.push(...sanitized);
+      mergeImportedLabels(incomingLabels);
+    }
+
+    saveData();
+    saveLabelMap();
+    updateLabels();
+    render();
+    showToast(`Imported ${sanitized.length} transaction(s)`, 'success');
+  } catch (error) {
+    console.error('Import failed:', error);
+    alert('Import failed. Please check file format and try again.');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof loadData === 'function') loadData();
+  updateLabels();
+  populateAccounts();
+  clearEditForm();
+  wireTools();
+  render();
+});
+</script>
+</body>
+</html>

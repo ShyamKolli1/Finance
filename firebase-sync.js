@@ -27,6 +27,33 @@ function isSyncEnabled() {
   return localStorage.getItem(SYNC_ENABLED_KEY) === 'true';
 }
 
+function refreshUiAfterSync() {
+  if (typeof window.loadData === 'function') {
+    window.loadData();
+  }
+
+  const refreshFns = [
+    'updateLabels',
+    'updateLabelList',
+    'loadLabels',
+    'render',
+    'renderAll',
+    'initCharts',
+    'populateLabelCompareList',
+    'updateMonthlyAnalytics'
+  ];
+
+  refreshFns.forEach((fnName) => {
+    if (typeof window[fnName] === 'function') {
+      try {
+        window[fnName]();
+      } catch (e) {
+        console.warn(`⚠️ UI refresh skipped for ${fnName}:`, e.message);
+      }
+    }
+  });
+}
+
 // Enable cloud sync
 function enableSync() {
   localStorage.setItem(SYNC_ENABLED_KEY, 'true');
@@ -120,9 +147,7 @@ async function syncFromCloud() {
       console.log('ℹ️ No labels in cloud yet');
     }
     
-    // Reload the page data
-    if (typeof loadData === 'function') loadData();
-    if (typeof render === 'function') render();
+    refreshUiAfterSync();
     
     console.log('📥 ✅ Cloud data synced successfully');
   } catch (error) {
@@ -158,10 +183,7 @@ function setupRealtimeSync() {
         
         console.log('🔄 Real-time update: Transactions updated from cloud');
         
-        // Reload the page data
-        if (typeof loadData === 'function') loadData();
-        if (typeof render === 'function') render();
-        if (typeof initCharts === 'function') initCharts();
+        refreshUiAfterSync();
       }
     }
   }, (error) => {
@@ -185,8 +207,7 @@ function setupRealtimeSync() {
         
         console.log('🔄 Real-time update: Labels updated from cloud');
         
-        // Reload labels
-        if (typeof updateLabels === 'function') updateLabels();
+        refreshUiAfterSync();
       }
     }
   }, (error) => {

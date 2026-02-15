@@ -9,8 +9,58 @@ var defaultLabels = {
 };
 
 // Global data and label map (shared)
-var data = JSON.parse(localStorage.getItem("financeData")) || [];
-var labelMap = JSON.parse(localStorage.getItem("financeLabels")) || defaultLabels;
+var data = [];
+var labelMap = {};
+
+function parseJsonSafe(raw, fallback) {
+  try {
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+function normalizeLabels(rawLabels) {
+  const source = rawLabels && typeof rawLabels === 'object' ? rawLabels : {};
+  const normalized = {};
+
+  Object.keys(defaultLabels).forEach((key) => {
+    const incoming = source[key];
+    normalized[key] = Array.isArray(incoming) ? incoming.slice() : defaultLabels[key].slice();
+  });
+
+  return normalized;
+}
+
+function loadData() {
+  const storedData = parseJsonSafe(localStorage.getItem("financeData"), []);
+  const storedLabels = parseJsonSafe(localStorage.getItem("financeLabels"), {});
+  const normalizedLabels = normalizeLabels(storedLabels);
+
+  data.length = 0;
+  if (Array.isArray(storedData)) {
+    data.push(...storedData);
+  }
+
+  Object.keys(labelMap).forEach((key) => delete labelMap[key]);
+  Object.keys(normalizedLabels).forEach((key) => {
+    labelMap[key] = normalizedLabels[key];
+  });
+
+  window.data = data;
+  window.labelMap = labelMap;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+loadData();
 
 function saveData() {
   localStorage.setItem("financeData", JSON.stringify(data));
@@ -36,4 +86,6 @@ window.data = data;
 window.labelMap = labelMap;
 window.saveData = saveData;
 window.saveLabelMap = saveLabelMap;
+window.loadData = loadData;
 window.normalizeAccount = normalizeAccount;
+window.escapeHtml = escapeHtml;
