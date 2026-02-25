@@ -872,11 +872,59 @@ let receivableSearchTerm = '';
 let payableSearchTerm = '';
 let receivableLabelFilter = 'all';
 let payableLabelFilter = 'all';
+let lastDeletedItem = null;
+let undoDeleteTimer = null;
 
 function showToast(message, kind) {
+  if (typeof window.notify === 'function') {
+    window.notify(message, kind || 'info');
+    return;
+  }
   if (typeof window.uiToast === 'function') {
     window.uiToast(message, kind || 'info');
+    return;
   }
+  console.log(String(message || ''));
+}
+
+function showUndoDeleteBanner() {
+  let host = document.getElementById('undoDeleteHost');
+  if (!host) {
+    const container = document.querySelector('.container') || document.body;
+    host = document.createElement('div');
+    host.id = 'undoDeleteHost';
+    host.className = 'alert alert-warning';
+    host.style.display = 'none';
+    host.style.marginBottom = '14px';
+    container.insertBefore(host, container.firstChild);
+  }
+
+  if (!lastDeletedItem) {
+    host.style.display = 'none';
+    host.innerHTML = '';
+    return;
+  }
+
+  host.innerHTML = `Item deleted. <button type="button" class="btn-tool" onclick="undoDeleteItem()">Undo</button>`;
+  host.style.display = 'block';
+}
+
+function undoDeleteItem() {
+  if (!lastDeletedItem) return;
+  const { index, item } = lastDeletedItem;
+  data.splice(index, 0, item);
+  lastDeletedItem = null;
+  if (undoDeleteTimer) {
+    clearTimeout(undoDeleteTimer);
+    undoDeleteTimer = null;
+  }
+  saveData();
+  if (window.CloudSync && window.CloudSync.isEnabled()) {
+    window.CloudSync.syncToCloud();
+  }
+  renderAll();
+  showUndoDeleteBanner();
+  showToast('Delete undone', 'success');
 }
 
 function formatDateInputValue(value) {
@@ -1187,6 +1235,10 @@ async function deleteItem(id) {
   if (approved) {
     const index = data.findIndex(d => d.id === id);
     if (index !== -1) {
+      lastDeletedItem = {
+        index,
+        item: { ...data[index] }
+      };
       data.splice(index, 1);
       saveData();
       
@@ -1196,13 +1248,20 @@ async function deleteItem(id) {
       }
       
       renderAll();
-      showToast('Item deleted successfully', 'warning');
+      showUndoDeleteBanner();
+      if (undoDeleteTimer) clearTimeout(undoDeleteTimer);
+      undoDeleteTimer = setTimeout(() => {
+        lastDeletedItem = null;
+        showUndoDeleteBanner();
+      }, 8000);
+      showToast('Item deleted — you can undo for 8 seconds', 'warning');
     }
   }
 }
 
 // Render all lists and calculations
 function renderAll() {
+  showUndoDeleteBanner();
   const receivables = data.filter(d => d.type === 'owe');
   const payables = data.filter(d => d.type === 'debt');
 

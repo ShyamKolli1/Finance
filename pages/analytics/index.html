@@ -64,6 +64,26 @@
     </div>
   </div>
 
+  <div class="card" style="margin-bottom: 20px;">
+    <h3>Insights</h3>
+    <div class="analytics-insights-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div>
+        <h4 style="margin-bottom: 10px; text-transform:none; letter-spacing:0;">Net Worth Trend</h4>
+        <div id="netWorthTrendInfo" style="font-size:13px; color:#666; margin-bottom:8px;"></div>
+        <div style="position: relative; height: 280px;">
+          <canvas id="netWorthTrendChart"></canvas>
+        </div>
+      </div>
+      <div>
+        <h4 style="margin-bottom: 10px; text-transform:none; letter-spacing:0;">This Month vs Last Month</h4>
+        <div id="monthCompareSummary" style="font-size:14px; margin-bottom:8px;"></div>
+        <div style="position: relative; height: 280px;">
+          <canvas id="monthCompareChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Main Charts -->
   <div class="analytics-main-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
     <div class="card" style="position: relative;">
@@ -104,22 +124,7 @@
     <div class="card">
       <h3>Account Split</h3>
       <table style="width: 100%; font-size: 14px;">
-        <tr style="border-bottom: 1px solid #eee;">
-          <td><strong>Cash Income</strong></td>
-          <td style="text-align: right;">$<span id="cashIncome">0.00</span></td>
-        </tr>
-        <tr style="border-bottom: 1px solid #eee;">
-          <td><strong>Cash Expense</strong></td>
-          <td style="text-align: right;">$<span id="cashExpense">0.00</span></td>
-        </tr>
-        <tr style="border-bottom: 1px solid #eee;">
-          <td><strong>Bank Income</strong></td>
-          <td style="text-align: right;">$<span id="bankIncome">0.00</span></td>
-        </tr>
-        <tr>
-          <td><strong>Bank Expense</strong></td>
-          <td style="text-align: right;">$<span id="bankExpense">0.00</span></td>
-        </tr>
+        <tbody id="accountSplitBody"></tbody>
       </table>
     </div>
   </div>
@@ -178,6 +183,172 @@
 </div>
 
 <script>
+let netWorthChartInstance = null;
+let monthCompareChartInstance = null;
+
+function parseDateSafe(rawDate) {
+  if (!rawDate) return null;
+  const direct = new Date(rawDate);
+  if (!Number.isNaN(direct.getTime())) return direct;
+
+  const parts = String(rawDate).split('/');
+  if (parts.length === 3) {
+    const month = Number(parts[0]);
+    const day = Number(parts[1]);
+    const year = Number(parts[2]);
+    const parsed = new Date(year, month - 1, day);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return null;
+}
+
+function getMonthKeyFromDate(rawDate) {
+  const d = parseDateSafe(rawDate);
+  if (!d) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function loadLabelMeta() {
+  try {
+    const raw = localStorage.getItem('financeLabelMeta');
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function formatLabelForDisplay(label, labelMeta) {
+  const name = String(label || 'Other');
+  const meta = labelMeta[name] || {};
+  return `${meta.icon ? meta.icon + ' ' : ''}${name}`;
+}
+
+function renderAccountSplitTable(accountStats) {
+  const body = document.getElementById('accountSplitBody');
+  if (!body) return;
+
+  const rows = Object.keys(accountStats)
+    .sort((a, b) => a.localeCompare(b))
+    .map((account, index, all) => {
+      const row = accountStats[account];
+      const border = index === all.length - 1 ? '' : ' style="border-bottom: 1px solid #eee;"';
+      return `
+        <tr${border}>
+          <td><strong>${typeof window.escapeHtml === 'function' ? window.escapeHtml(account) : account}</strong></td>
+          <td style="text-align:right; color:#2e7d32;">+$${row.income.toFixed(2)}</td>
+          <td style="text-align:right; color:#c62828;">-$${row.expense.toFixed(2)}</td>
+          <td style="text-align:right;"><strong>$${(row.income - row.expense).toFixed(2)}</strong></td>
+        </tr>
+      `;
+    });
+
+  body.innerHTML = `
+    <tr style="border-bottom: 1px solid #ddd; background:#f7f8fc;">
+      <td><strong>Account</strong></td>
+      <td style="text-align:right;"><strong>Income</strong></td>
+      <td style="text-align:right;"><strong>Expense</strong></td>
+      <td style="text-align:right;"><strong>Net</strong></td>
+    </tr>
+    ${rows.join('')}
+  `;
+}
+
+function renderNetWorthAndMonthComparison(transactions) {
+  const trendCanvas = document.getElementById('netWorthTrendChart');
+  const compareCanvas = document.getElementById('monthCompareChart');
+  const trendInfo = document.getElementById('netWorthTrendInfo');
+  const compareSummary = document.getElementById('monthCompareSummary');
+  if (!trendCanvas || !compareCanvas || !trendInfo || !compareSummary) return;
+
+  const sorted = transactions
+    .filter((item) => ['income', 'expense'].includes(item.type))
+    .slice()
+    .sort((a, b) => {
+      const aDate = parseDateSafe(a.date);
+      const bDate = parseDateSafe(b.date);
+      return (aDate ? aDate.getTime() : 0) - (bDate ? bDate.getTime() : 0);
+    });
+
+  const points = [];
+  let running = 0;
+  sorted.forEach((item) => {
+    const amount = Number(item.amount || 0);
+    if (!Number.isFinite(amount)) return;
+    running += item.type === 'expense' ? -amount : amount;
+    points.push({
+      label: item.date || '',
+      value: running
+    });
+  });
+
+  if (netWorthChartInstance) netWorthChartInstance.destroy();
+  netWorthChartInstance = new Chart(trendCanvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: points.map((p) => p.label),
+      datasets: [{
+        label: 'Running Net Worth',
+        data: points.map((p) => p.value),
+        borderColor: '#667eea',
+        backgroundColor: 'rgba(102,126,234,0.15)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.25,
+        pointRadius: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { ticks: { callback: (v) => '$' + Number(v).toFixed(0) } } }
+    }
+  });
+
+  trendInfo.textContent = points.length
+    ? `Latest net worth: $${Number(points[points.length - 1].value || 0).toFixed(2)}`
+    : 'Add income/expense transactions to see the trend.';
+
+  const now = new Date();
+  const prev = new Date(now);
+  prev.setMonth(prev.getMonth() - 1);
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const previousMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+
+  const sumByMonthType = (monthKey, type) => transactions
+    .filter((item) => item.type === type && getMonthKeyFromDate(item.date) === monthKey)
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  const incomeNow = sumByMonthType(currentMonth, 'income');
+  const expenseNow = sumByMonthType(currentMonth, 'expense');
+  const incomePrev = sumByMonthType(previousMonth, 'income');
+  const expensePrev = sumByMonthType(previousMonth, 'expense');
+
+  if (monthCompareChartInstance) monthCompareChartInstance.destroy();
+  monthCompareChartInstance = new Chart(compareCanvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['Income', 'Expense'],
+      datasets: [
+        { label: 'This Month', data: [incomeNow, expenseNow], backgroundColor: '#4caf50' },
+        { label: 'Last Month', data: [incomePrev, expensePrev], backgroundColor: '#90caf9' }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, ticks: { callback: (v) => '$' + Number(v).toFixed(0) } } }
+    }
+  });
+
+  compareSummary.innerHTML = `
+    <div>Income: $${incomeNow.toFixed(2)} (Last: $${incomePrev.toFixed(2)})</div>
+    <div>Expense: $${expenseNow.toFixed(2)} (Last: $${expensePrev.toFixed(2)})</div>
+    <div style="margin-top:6px; font-weight:700;">Net delta: $${((incomeNow - expenseNow) - (incomePrev - expensePrev)).toFixed(2)}</div>
+  `;
+}
+
 function initCharts() {
   try {
     const rawData = localStorage.getItem('financeData');
@@ -191,26 +362,59 @@ function initCharts() {
     
     if (!Array.isArray(transactions) || transactions.length === 0) return;
     
+    const labelMeta = loadLabelMeta();
+    const storedAccountsRaw = localStorage.getItem('financeAccounts');
+    let storedAccounts = ['Cash', 'Bank'];
+    try {
+      storedAccounts = storedAccountsRaw ? JSON.parse(storedAccountsRaw) : ['Cash', 'Bank'];
+    } catch (_) {
+      storedAccounts = ['Cash', 'Bank'];
+    }
+    const accountSet = new Set(Array.isArray(storedAccounts) ? storedAccounts : ['Cash', 'Bank']);
+
     // Calculate totals
     let totalIncome = 0, totalExpense = 0;
     let expenseByLabel = {}, incomeByLabel = {};
-    let cashIncome = 0, cashExpense = 0, bankIncome = 0, bankExpense = 0;
+    const accountStats = {};
+
+    accountSet.forEach((name) => {
+      accountStats[String(name)] = { income: 0, expense: 0 };
+    });
     
     transactions.forEach(t => {
       const amt = parseFloat(t.amount);
-      const account = normalizeAccount(t.account);
-      const isCash = /cash/i.test(account);
+      if (!Number.isFinite(amt) || amt <= 0) return;
+      const account = String(t.account || 'Cash').trim() || 'Cash';
+      if (!accountStats[account]) accountStats[account] = { income: 0, expense: 0 };
       
       if (t.type === 'income') {
         totalIncome += amt;
-        incomeByLabel[t.label] = (incomeByLabel[t.label] || 0) + amt;
-        if (isCash) cashIncome += amt;
-        else bankIncome += amt;
+        if (Array.isArray(t.splits) && t.splits.length) {
+          t.splits.forEach((split) => {
+            const splitAmt = Number(split.amount || 0);
+            if (!Number.isFinite(splitAmt) || splitAmt <= 0) return;
+            const key = formatLabelForDisplay(split.label || t.label || 'Other', labelMeta);
+            incomeByLabel[key] = (incomeByLabel[key] || 0) + splitAmt;
+          });
+        } else {
+          const key = formatLabelForDisplay(t.label || 'Other', labelMeta);
+          incomeByLabel[key] = (incomeByLabel[key] || 0) + amt;
+        }
+        accountStats[account].income += amt;
       } else if (t.type === 'expense') {
         totalExpense += amt;
-        expenseByLabel[t.label] = (expenseByLabel[t.label] || 0) + amt;
-        if (isCash) cashExpense += amt;
-        else bankExpense += amt;
+        if (Array.isArray(t.splits) && t.splits.length) {
+          t.splits.forEach((split) => {
+            const splitAmt = Number(split.amount || 0);
+            if (!Number.isFinite(splitAmt) || splitAmt <= 0) return;
+            const key = formatLabelForDisplay(split.label || t.label || 'Other', labelMeta);
+            expenseByLabel[key] = (expenseByLabel[key] || 0) + splitAmt;
+          });
+        } else {
+          const key = formatLabelForDisplay(t.label || 'Other', labelMeta);
+          expenseByLabel[key] = (expenseByLabel[key] || 0) + amt;
+        }
+        accountStats[account].expense += amt;
       }
     });
     
@@ -218,16 +422,18 @@ function initCharts() {
     document.getElementById('totalIncome').textContent = totalIncome.toFixed(2);
     document.getElementById('totalExpense').textContent = totalExpense.toFixed(2);
     document.getElementById('netBalance').textContent = (totalIncome - totalExpense).toFixed(2);
-    document.getElementById('cashIncome').textContent = cashIncome.toFixed(2);
-    document.getElementById('cashExpense').textContent = cashExpense.toFixed(2);
-    document.getElementById('bankIncome').textContent = bankIncome.toFixed(2);
-    document.getElementById('bankExpense').textContent = bankExpense.toFixed(2);
+
+    renderAccountSplitTable(accountStats);
     
     // Create charts using utility functions
     createIncomeExpenseChart('incomeExpenseChart', totalIncome, totalExpense);
-    createStackedBarChart('accountChart', ['Cash', 'Bank'], [cashIncome, bankIncome], [cashExpense, bankExpense], 'Income', 'Expense');
+    const accountLabels = Object.keys(accountStats).sort((a, b) => a.localeCompare(b));
+    const incomeSeries = accountLabels.map((name) => accountStats[name].income || 0);
+    const expenseSeries = accountLabels.map((name) => accountStats[name].expense || 0);
+    createStackedBarChart('accountChart', accountLabels, incomeSeries, expenseSeries, 'Income', 'Expense');
     createDoughnutChart('expenseByLabelChart', Object.keys(expenseByLabel), Object.values(expenseByLabel), 'Expense by Label');
     createDoughnutChart('incomeByLabelChart', Object.keys(incomeByLabel), Object.values(incomeByLabel), 'Income by Label');
+    renderNetWorthAndMonthComparison(transactions);
     
     // Populate label select
     const allLabels = [...new Set(transactions.map(t => t.label))].sort();
@@ -236,7 +442,7 @@ function initCharts() {
     allLabels.forEach(label => {
       const opt = document.createElement('option');
       opt.value = label;
-      opt.textContent = label;
+      opt.textContent = formatLabelForDisplay(label, labelMeta);
       labelSelect.appendChild(opt);
     });
     

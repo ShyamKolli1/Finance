@@ -1053,7 +1053,8 @@ a:active {
 
 @media (max-width: 768px) {
   .analytics-overview-page .analytics-main-grid,
-  .analytics-overview-page .analytics-breakdown-grid {
+  .analytics-overview-page .analytics-breakdown-grid,
+  .analytics-overview-page .analytics-insights-grid {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
   }

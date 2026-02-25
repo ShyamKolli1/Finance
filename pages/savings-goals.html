@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Savings Goals - Finance Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script type="module" src="../firebase-config.js"></script>
+  <script type="module">
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+    document.documentElement.style.visibility = 'hidden';
+
+    const waitForAuth = setInterval(() => {
+      if (window.firebaseAuth) {
+        clearInterval(waitForAuth);
+        onAuthStateChanged(window.firebaseAuth, (user) => {
+          if (!user) {
+            window.location.replace('../login.html');
+          } else {
+            document.documentElement.style.visibility = 'visible';
+          }
+        });
+      }
+    }, 100);
+  </script>
+  <link rel="stylesheet" href="../styles/main.css">
+  <script src="../js/app-shell.js"></script>
+  <script src="../storage.js"></script>
+  <script src="../js/ui-enhancements.js"></script>
+  <style>
+    .savings-insight-row,
+    .goal-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid #e6eaf8;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      background: #fbfcff;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: #e8ecfb;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .progress-bar > span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #8d92a8;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div style="text-align: center; color: white; margin-bottom: 20px;">
+  <h1>🎯 Savings Goals</h1>
+  <p style="font-size: 13px; opacity: 0.9;">Home &gt; Savings Goals</p>
+</div>
+
+<div id="mainContent" style="max-width: 1200px; margin: 0 auto;">
+  <div class="top-nav">
+    <a href="../index.html"><button class="btn-back" aria-label="Back to dashboard">← Back to Dashboard</button></a>
+    <a href="analytics/"><button style="background:#2196F3; color:white;" aria-label="Open analytics">📊 Analytics</button></a>
+    <a href="labels.html"><button style="background:#9C27B0; color:white;" aria-label="Open labels">⚙ Manage Labels</button></a>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom: 8px;">Create Goal</h2>
+    <p style="color:#5f6787; margin-bottom: 14px;">Goal target does not affect balances. Only saving transactions under the same label increase saved amount.</p>
+    <div class="inline-tools">
+      <input id="goalName" type="text" placeholder="Goal name (e.g. Tuition fee)">
+      <input id="goalTarget" type="number" step="0.01" min="0" placeholder="Target amount">
+      <button type="button" class="btn-tool" onclick="addGoal()">Add Goal</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom: 8px;">Savings Summary</h2>
+    <div id="summaryRows"></div>
+  </div>
+
+  <div class="card">
+    <h2>Goals</h2>
+    <div id="goalsList"></div>
+  </div>
+</div>
+
+<script>
+const GOALS_KEY = 'financeGoals';
+
+let goals = [];
+
+function safeText(value) {
+  if (typeof window.escapeHtml === 'function') {
+    return window.escapeHtml(value);
+  }
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function showToast(message, kind) {
+  if (typeof window.notify === 'function') {
+    window.notify(message, kind || 'info');
+    return;
+  }
+  alert(String(message || ''));
+}
+
+function formatMoney(value) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric)) return '$0.00';
+  return '$' + numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseLocalJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function saveGoals() {
+  localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
+}
+
+function loadGoals() {
+  const parsed = parseLocalJson(GOALS_KEY, []);
+  goals = Array.isArray(parsed) ? parsed : [];
+}
+
+function ensureSavingLabelForGoal(goalName) {
+  const cleanName = String(goalName || '').trim();
+  if (!cleanName) return;
+
+  if (!Array.isArray(labelMap.saving)) {
+    labelMap.saving = Array.isArray(defaultLabels.saving) ? defaultLabels.saving.slice() : [];
+  }
+
+  const exists = labelMap.saving.some((label) => String(label || '').trim().toLowerCase() === cleanName.toLowerCase());
+  if (!exists) {
+    labelMap.saving.push(cleanName);
+    if (typeof saveLabelMap === 'function') {
+      saveLabelMap();
+    } else {
+      localStorage.setItem('financeLabels', JSON.stringify(labelMap));
+    }
+  }
+}
+
+function syncGoalsToSavingLabels() {
+  goals.forEach((goal) => ensureSavingLabelForGoal(goal && goal.name));
+  const merged = Array.from(new Set([
+    ...(Array.isArray(labelMap.saving) ? labelMap.saving : []),
+    ...goals.map((goal) => String((goal && goal.name) || '').trim()).filter(Boolean)
+  ])).sort((a, b) => String(a).localeCompare(String(b)));
+  labelMap.saving = merged;
+  if (typeof saveLabelMap === 'function') {
+    saveLabelMap();
+  } else {
+    localStorage.setItem('financeLabels', JSON.stringify(labelMap));
+  }
+}
+
+function isScheduledFuture(transaction) {
+  if (!transaction || !transaction.scheduled || !transaction.date) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return String(transaction.date) > today;
+}
+
+function getVisibleTransactions() {
+  const rows = Array.isArray(data) ? data : [];
+  return rows.filter((item) => !isScheduledFuture(item));
+}
+
+function getGoalSavedAmount(goalName) {
+  const target = String(goalName || '').trim().toLowerCase();
+  if (!target) return 0;
+  return getVisibleTransactions()
+    .filter((tx) => tx.type === 'saving' && String(tx.label || '').trim().toLowerCase() === target)
+    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+}
+
+function getSavingsInsightsTotals() {
+  const totalSavings = getVisibleTransactions()
+    .filter((tx) => tx.type === 'saving')
+    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+
+  const goalNames = new Set(goals.map((goal) => String(goal.name || '').trim().toLowerCase()).filter(Boolean));
+  const goalLinkedSavings = getVisibleTransactions()
+    .filter((tx) => tx.type === 'saving' && goalNames.has(String(tx.label || '').trim().toLowerCase()))
+    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+
+  return {
+    totalSavings,
+    goalLinkedSavings,
+    unassignedSavings: Math.max(totalSavings - goalLinkedSavings, 0)
+  };
+}
+
+function renderSummary() {
+  const host = document.getElementById('summaryRows');
+  if (!host) return;
+  const totals = getSavingsInsightsTotals();
+  host.innerHTML = `
+    <div class="savings-insight-row"><strong>Total Saving Transactions</strong><span>${safeText(formatMoney(totals.totalSavings))}</span></div>
+    <div class="savings-insight-row"><strong>Assigned to Goals</strong><span>${safeText(formatMoney(totals.goalLinkedSavings))}</span></div>
+    <div class="savings-insight-row"><strong>Unassigned Saving</strong><span>${safeText(formatMoney(totals.unassignedSavings))}</span></div>
+    <div class="savings-insight-row"><strong>Active Goals</strong><span>${goals.length}</span></div>
+  `;
+}
+
+function addGoal() {
+  const nameEl = document.getElementById('goalName');
+  const targetEl = document.getElementById('goalTarget');
+  if (!nameEl || !targetEl) return;
+
+  const name = String(nameEl.value || '').trim();
+  const target = Number(targetEl.value || 0);
+  if (!name || !Number.isFinite(target) || target <= 0) {
+    showToast('Enter valid goal name and target', 'warning');
+    return;
+  }
+
+  goals.push({ id: `goal-${Date.now()}`, name, target });
+  ensureSavingLabelForGoal(name);
+  saveGoals();
+  nameEl.value = '';
+  targetEl.value = '';
+  renderAll();
+  showToast('Goal added', 'success');
+}
+
+function deleteGoal(id) {
+  goals = goals.filter((goal) => goal.id !== id);
+  saveGoals();
+  renderAll();
+}
+
+function renderGoals() {
+  const node = document.getElementById('goalsList');
+  if (!node) return;
+
+  if (!goals.length) {
+    node.innerHTML = '<div class="empty-state">No goals yet.</div>';
+    return;
+  }
+
+  node.innerHTML = goals.map((goal) => {
+    const savedAmount = getGoalSavedAmount(goal.name);
+    const target = Number(goal.target || 0);
+    const ratio = target > 0 ? Math.min((savedAmount / target) * 100, 100) : 0;
+    const remaining = Math.max(target - savedAmount, 0);
+
+    return `
+      <div class="goal-row">
+        <div style="width:100%;">
+          <strong>${safeText(goal.name)}</strong>
+          <div>${safeText(formatMoney(savedAmount))} / ${safeText(formatMoney(target))}</div>
+          <div style="font-size:12px; color:#5c6586; margin-top:2px;">Remaining: ${safeText(formatMoney(remaining))}</div>
+          <div class="progress-bar"><span style="width:${ratio}%;"></span></div>
+        </div>
+        <button type="button" class="btn-tool" onclick="deleteGoal('${safeText(goal.id)}')">Delete</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderAll() {
+  renderSummary();
+  renderGoals();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof loadData === 'function') loadData();
+  loadGoals();
+  syncGoalsToSavingLabels();
+  renderAll();
+});
+
+window.addEventListener('storage', () => {
+  if (typeof loadData === 'function') loadData();
+  loadGoals();
+  renderAll();
+});
+</script>
+
+</body>
+</html>

@@ -8,6 +8,7 @@
     { key: 'dashboard', label: 'Dashboard', icon: '📊', href: '../../index.html', match: [/\/index\.html$/] },
     { key: 'transactions', label: 'Transactions', icon: '📋', href: '../../transactions.html', match: [/\/transactions\.html$/] },
     { key: 'accounts', label: 'Accounts, Budgets & Goals', icon: '⚙️', href: '../../accounts-budgets-goals.html', match: [/\/accounts-budgets-goals\.html$/] },
+    { key: 'savings-goals', label: 'Savings Goals', icon: '🎯', href: '../../pages/savings-goals.html', match: [/\/pages\/savings-goals\.html$/] },
     { key: 'analytics', label: 'Analytics', icon: '📈', href: '../../pages/analytics/', match: [/\/pages\/analytics\//] },
     { key: 'labels', label: 'Manage Labels', icon: '⚙', href: '../../pages/labels.html', match: [/\/pages\/labels\.html$/] },
     { key: 'payables', label: 'Payables & Receivables', icon: '💰', href: '../../payables-receivables.html', match: [/\/payables-receivables\.html$/] }

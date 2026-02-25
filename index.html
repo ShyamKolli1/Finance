@@ -351,6 +351,8 @@
     
     .balance-box.cash { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
     .balance-box.bank { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .balance-box.savings { background: linear-gradient(135deg, #26a69a 0%, #2e7d32 100%); }
+    .balance-box.nonsavings { background: linear-gradient(135deg, #5c6bc0 0%, #3949ab 100%); }
     
     .balance-box p { font-size: 14px; opacity: 0.9; margin-bottom: 8px; }
     .balance-box .amount { font-size: 28px; font-weight: bold; }
@@ -676,6 +678,22 @@
       border-radius: 10px;
       background: #fafcff;
     }
+
+    .savings-insight-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px solid #e6eaf8;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      background: #fbfcff;
+    }
+
+    .savings-insight-row strong {
+      color: #2e3a72;
+    }
     
     .btn-delete:hover { 
       background: #ff6b6b; 
@@ -755,6 +773,7 @@
   <div class="top-buttons">
   <a href="pages/analytics/"><button class="btn btn-analytics" aria-label="Open analytics">📊 Analytics</button></a>
   <a href="pages/labels.html"><button class="btn btn-labels" aria-label="Open manage labels">⚙ Manage Labels</button></a>
+  <a href="pages/savings-goals.html"><button class="btn" style="background: linear-gradient(135deg, #26a69a 0%, #2e7d32 100%);" aria-label="Open savings goals">🎯 Savings Goals</button></a>
   </div>
   
   <div class="top-buttons">
@@ -803,7 +822,16 @@
           <p>Bank Balance</p>
           <div class="amount">$<span id="bank">0.00</span></div>
         </div>
+        <div class="balance-box savings">
+          <p>Savings</p>
+          <div class="amount">$<span id="savingsBalance">0.00</span></div>
+        </div>
+        <div class="balance-box nonsavings">
+          <p>Non-Savings</p>
+          <div class="amount">$<span id="nonSavingsBalance">0.00</span></div>
+        </div>
       </div>
+      <div id="accountBalancesList" style="margin-top:12px;"></div>
     </div>
 
     <div class="card due-soon-card">
@@ -880,6 +908,102 @@
         <button class="btn-clear" onclick="clearForm()" aria-label="Clear transaction form">Clear</button>
       </div>
       <div id="editModeHint" class="edit-mode-hint" style="display:none;">Editing existing transaction</div>
+    </div>
+
+    <div class="card">
+      <h2>⚡ Quick Add From Recent</h2>
+      <p style="margin-bottom:10px; color:#5f6787;">Tap a recent item to prefill type, label, amount, and account.</p>
+      <div id="recentQuickAdd" class="inline-tools"></div>
+    </div>
+
+    <div class="card transactions-section">
+      <h2>🧾 Transactions</h2>
+      <div class="transactions-tools">
+        <input id="transactionSearch" type="text" placeholder="Search by label or notes">
+        <select id="transactionTypeFilter">
+          <option value="all">All Types</option>
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+          <option value="transfer">Transfer</option>
+          <option value="saving">Saving</option>
+        </select>
+        <select id="transactionSort">
+          <option value="date_desc">Newest first</option>
+          <option value="date_asc">Oldest first</option>
+          <option value="amount_desc">Amount high → low</option>
+          <option value="amount_asc">Amount low → high</option>
+          <option value="label_asc">Label A → Z</option>
+        </select>
+      </div>
+      <div class="transactions-export">
+        <button type="button" class="btn-tool" onclick="exportDataAsJson()">Export JSON</button>
+        <button type="button" class="btn-tool" onclick="exportDataAsCsv()">Export CSV</button>
+        <button type="button" class="btn-tool" onclick="openImportDialog()">Import JSON/CSV</button>
+      </div>
+      <ul id="list" class="transaction-list"></ul>
+    </div>
+
+    <div class="card">
+      <h2>🏦 Accounts</h2>
+      <div class="inline-tools">
+        <input id="newAccountName" type="text" placeholder="Add custom account (e.g. Wallet, Credit Card)">
+        <button type="button" class="btn-tool" onclick="addCustomAccount()">Add Account</button>
+      </div>
+      <div id="accountsList"></div>
+    </div>
+
+    <div class="card">
+      <h2>📊 Budgets (This Month)</h2>
+      <div class="inline-tools">
+        <select id="budgetLabel"></select>
+        <input id="budgetAmount" type="number" step="0.01" min="0" placeholder="Budget amount">
+        <button type="button" class="btn-tool" onclick="saveBudget()">Save Budget</button>
+      </div>
+      <div id="budgetStatusList"></div>
+    </div>
+
+    <div class="card">
+      <h2>🏷️ Category Icons & Colors</h2>
+      <div class="inline-tools">
+        <select id="metaLabel"></select>
+        <input id="metaIcon" type="text" maxlength="2" placeholder="Icon (emoji)">
+        <input id="metaColor" type="color" value="#667eea" style="min-height:44px; width:70px;">
+        <button type="button" class="btn-tool" onclick="saveLabelMeta()">Save Style</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>💱 Currency</h2>
+      <div class="inline-tools">
+        <select id="primaryCurrency">
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+          <option value="GBP">GBP</option>
+          <option value="INR">INR</option>
+          <option value="CAD">CAD</option>
+          <option value="AUD">AUD</option>
+        </select>
+        <select id="secondaryCurrency">
+          <option value="">No secondary currency</option>
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+          <option value="GBP">GBP</option>
+          <option value="INR">INR</option>
+          <option value="CAD">CAD</option>
+          <option value="AUD">AUD</option>
+        </select>
+        <input id="currencyRate" type="number" step="0.0001" min="0" placeholder="Rate">
+        <button type="button" class="btn-tool" onclick="saveCurrencySettings()">Save Currency</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>⌨️ Shortcuts</h2>
+      <div style="color:#4d5678; line-height:1.6;">
+        <div><strong>N</strong> → Focus Add Transaction amount</div>
+        <div><strong>/</strong> → Focus transaction search</div>
+        <div><strong>Esc</strong> → Close dropdowns / split editor</div>
+      </div>
     </div>
 
     <div class="card" id="backupReminderBanner">
@@ -1071,6 +1195,100 @@ function getLabelOptionsForBudgets() {
   return Array.from(new Set(expenseLabels.map((item) => String(item || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 }
 
+function getMergedSavingLabels() {
+  const fromLabelMap = Array.isArray(labelMap && labelMap.saving) ? labelMap.saving : (defaultLabels.saving || []);
+  const fromGoals = Array.isArray(goals) ? goals.map((goal) => String((goal && goal.name) || '').trim()).filter(Boolean) : [];
+  return Array.from(new Set([...fromLabelMap, ...fromGoals])).sort((a, b) => String(a).localeCompare(String(b)));
+}
+
+function persistMergedSavingLabels() {
+  const merged = getMergedSavingLabels();
+  if (!Array.isArray(labelMap.saving)) {
+    labelMap.saving = [];
+  }
+  const current = JSON.stringify(labelMap.saving.slice().sort((a, b) => String(a).localeCompare(String(b))));
+  const next = JSON.stringify(merged);
+  if (current !== next) {
+    labelMap.saving = merged;
+    if (typeof saveLabelMap === 'function') saveLabelMap();
+  }
+}
+
+function ensureSavingLabelForGoal(goalName) {
+  const cleanName = String(goalName || '').trim();
+  if (!cleanName) return;
+
+  if (!Array.isArray(labelMap.saving)) {
+    labelMap.saving = Array.isArray(defaultLabels.saving) ? defaultLabels.saving.slice() : [];
+  }
+
+  const exists = labelMap.saving.some((label) => String(label || '').trim().toLowerCase() === cleanName.toLowerCase());
+  if (!exists) {
+    labelMap.saving.push(cleanName);
+    if (typeof saveLabelMap === 'function') saveLabelMap();
+  }
+}
+
+function syncGoalsToSavingLabels() {
+  if (!Array.isArray(goals) || !goals.length) return;
+  goals.forEach((goal) => ensureSavingLabelForGoal(goal && goal.name));
+  persistMergedSavingLabels();
+}
+
+function getGoalSavedAmount(goalName) {
+  const target = String(goalName || '').trim().toLowerCase();
+  if (!target) return 0;
+  return getVisibleTransactions()
+    .filter((tx) => tx.type === 'saving' && String(tx.label || '').trim().toLowerCase() === target)
+    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+}
+
+function getSavingsInsightsTotals() {
+  const totalSavings = getVisibleTransactions()
+    .filter((tx) => tx.type === 'saving')
+    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+
+  const goalNames = new Set((goals || []).map((goal) => String(goal.name || '').trim().toLowerCase()).filter(Boolean));
+  const goalLinkedSavings = getVisibleTransactions()
+    .filter((tx) => tx.type === 'saving' && goalNames.has(String(tx.label || '').trim().toLowerCase()))
+    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+
+  const unassignedSavings = Math.max(totalSavings - goalLinkedSavings, 0);
+
+  return {
+    totalSavings,
+    goalLinkedSavings,
+    unassignedSavings
+  };
+}
+
+function renderSavingsInsights() {
+  const host = document.getElementById('savingsInsights');
+  if (!host) return;
+
+  const { totalSavings, goalLinkedSavings, unassignedSavings } = getSavingsInsightsTotals();
+  const goalsCount = Array.isArray(goals) ? goals.length : 0;
+
+  host.innerHTML = `
+    <div class="savings-insight-row">
+      <strong>Total Saved</strong>
+      <span>${safeText(formatMoneyFull(totalSavings))}</span>
+    </div>
+    <div class="savings-insight-row">
+      <strong>Saved For Goals</strong>
+      <span>${safeText(formatMoneyFull(goalLinkedSavings))}</span>
+    </div>
+    <div class="savings-insight-row">
+      <strong>Unassigned Savings</strong>
+      <span>${safeText(formatMoneyFull(unassignedSavings))}</span>
+    </div>
+    <div class="savings-insight-row">
+      <strong>Active Goals</strong>
+      <span>${goalsCount}</span>
+    </div>
+  `;
+}
+
 function safeText(value) {
   if (typeof window.escapeHtml === 'function') {
     return window.escapeHtml(value);
@@ -1096,9 +1314,29 @@ let transactionTypeFilter = 'all';
 let transactionSort = 'date_desc';
 
 function showToast(message, kind) {
+  if (typeof window.notify === 'function') {
+    window.notify(message, kind || 'info');
+    return;
+  }
   if (typeof window.uiToast === 'function') {
     window.uiToast(message, kind || 'info');
+    return;
   }
+  console.log(String(message || ''));
+}
+
+function normalizeAccountName(value) {
+  return String(value || '').trim();
+}
+
+function ensureAccountExists(accountName) {
+  const normalized = normalizeAccountName(accountName);
+  if (!normalized) return accounts[0] || 'Cash';
+  if (!accounts.includes(normalized)) {
+    accounts.push(normalized);
+    saveAdvancedState();
+  }
+  return normalized;
 }
 
 function normalizeTransactionType(type) {
@@ -1237,7 +1475,9 @@ function startEditTransaction(index) {
   updateLabels();
   document.getElementById('label').value = transaction.label || '';
   document.getElementById('amount').value = Number(transaction.amount || 0);
-  document.getElementById('account').value = /cash/i.test(normalizeAccount(transaction.account)) ? 'Cash' : 'Bank';
+  const accountName = ensureAccountExists(transaction.account);
+  populateAccountOptions();
+  document.getElementById('account').value = accountName;
   document.getElementById('transactionDate').value = getTransactionDateString(transaction.date) || new Date().toISOString().slice(0, 10);
   document.getElementById('notes').value = String(transaction.notes || '');
   setEditMode(true);
@@ -1373,7 +1613,7 @@ function parseCsvTransactions(csvText) {
       type,
       amount,
       label: String(values[indexMap.label] || '').trim() || 'Other',
-      account: /cash/i.test(normalizeAccount(values[indexMap.account])) ? 'Cash' : 'Bank',
+      account: ensureAccountExists(String(values[indexMap.account] || '').trim() || 'Cash'),
       date: String(values[indexMap.date] || '').trim() || new Date().toISOString().slice(0, 10),
       notes: String(values[indexMap.notes] || '').trim(),
       createdAt: String(values[indexMap.createdAt] || '').trim() || new Date().toISOString()
@@ -1390,7 +1630,7 @@ function normalizeImportedTransaction(raw) {
     type: normalizeTransactionType(String(raw.type || '').trim()),
     amount,
     label: String(raw.label || '').trim() || 'Other',
-    account: /cash/i.test(normalizeAccount(raw.account)) ? 'Cash' : 'Bank',
+    account: ensureAccountExists(String(raw.account || '').trim() || 'Cash'),
     date: String(raw.date || '').trim() || new Date().toISOString().slice(0, 10),
     notes: String(raw.notes || '').trim(),
     createdAt: String(raw.createdAt || '').trim() || new Date().toISOString()
@@ -1596,7 +1836,9 @@ function addGoal() {
     return;
   }
   goals.push({ id: `goal-${Date.now()}`, name, target });
+  ensureSavingLabelForGoal(name);
   saveAdvancedState();
+  updateLabels();
   renderGoals();
   nameEl.value = '';
   targetEl.value = '';
@@ -1612,18 +1854,19 @@ function removeGoal(id) {
 function renderGoals() {
   const node = document.getElementById('goalsList');
   if (!node) return;
-  const savedAmount = getVisibleTransactions().filter((tx) => tx.type === 'saving').reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
   if (!goals.length) {
     node.innerHTML = '<div class="empty-state" style="padding:10px 0;">No goals yet.</div>';
     return;
   }
   node.innerHTML = goals.map((goal) => {
+    const savedAmount = getGoalSavedAmount(goal.name);
     const ratio = Math.min((savedAmount / Number(goal.target || 1)) * 100, 100);
     return `
       <div class="goal-row">
         <div>
           <strong>${safeText(goal.name)}</strong>
           <div>${formatMoneyFull(savedAmount)} / ${formatMoneyFull(goal.target)}</div>
+          <div style="font-size:12px; color:#5c6586; margin-top:2px;">Tracked by saving label: ${safeText(goal.name)}</div>
           <div class="progress-bar"><span style="width:${ratio}%;"></span></div>
         </div>
         <button type="button" class="btn-tool" onclick="removeGoal('${safeText(goal.id)}')">Delete</button>
@@ -2006,6 +2249,7 @@ async function changePasswordFlow() {
 
 function initAdvancedPanels() {
   loadAdvancedState();
+  syncGoalsToSavingLabels();
   renderCurrencySettings();
   populateAccountOptions();
   renderBudgetStatus();
@@ -2022,7 +2266,9 @@ function initAdvancedPanels() {
 function updateLabels() {
   const selectedType = document.getElementById("type").value;
   const labelSelect = document.getElementById("label");
-  const labels = labelMap[selectedType] || defaultLabels[selectedType] || [];
+  const labels = selectedType === 'saving'
+    ? getMergedSavingLabels()
+    : (labelMap[selectedType] || defaultLabels[selectedType] || []);
   
   labelSelect.innerHTML = "";
   labels.forEach(label => {
@@ -2043,6 +2289,7 @@ function updateLabels() {
 
   const metaLabel = document.getElementById('metaLabel');
   if (metaLabel) {
+    persistMergedSavingLabels();
     const allLabels = Array.from(new Set(Object.values(labelMap).flat())).filter(Boolean).sort((a, b) => String(a).localeCompare(String(b)));
     const selectedMeta = metaLabel.value;
     metaLabel.innerHTML = allLabels.map((label) => `<option value="${safeText(label)}">${safeText(label)}</option>`).join('');
@@ -2078,7 +2325,7 @@ function addTransaction() {
   const repeatEvery = document.getElementById('repeatEvery').value || 'none';
   const userScheduled = !!document.getElementById('isScheduled').checked;
   // store canonical account values (Cash/Bank)
-  const account = accounts.includes(accountRaw) ? accountRaw : (/cash/i.test(normalizeAccount(accountRaw)) ? 'Cash' : 'Bank');
+  const account = ensureAccountExists(accountRaw);
   
   if (!amount || amount <= 0) {
     alert("Please enter a valid amount");
@@ -2156,21 +2403,40 @@ function render() {
   
   let cashBalance = 0;
   let bankBalance = 0;
+  let savingsBalance = 0;
+  const goalNames = new Set((goals || []).map((goal) => String(goal.name || '').trim().toLowerCase()).filter(Boolean));
+  const accountBalances = {};
+  accounts.forEach((acc) => {
+    accountBalances[acc] = 0;
+  });
   const visibleTransactions = getVisibleTransactions();
   
   // Calculate balances
   visibleTransactions.forEach(t => {
     let amount = parseFloat(t.amount);
+    if (!Number.isFinite(amount)) return;
+    const rawAccount = ensureAccountExists(t.account || 'Cash');
+    if (!Object.prototype.hasOwnProperty.call(accountBalances, rawAccount)) {
+      accountBalances[rawAccount] = 0;
+    }
     if (t.type === "income") {
       const acc = normalizeAccount(t.account);
       const isCash = /cash/i.test(acc);
       if (isCash) cashBalance += amount;
       else bankBalance += amount;
+      accountBalances[rawAccount] += amount;
     } else if (t.type === "expense") {
       const acc = normalizeAccount(t.account);
       const isCash = /cash/i.test(acc);
       if (isCash) cashBalance -= amount;
       else bankBalance -= amount;
+      accountBalances[rawAccount] -= amount;
+    } else if (t.type === "saving") {
+      if (goalNames.has(String(t.label || '').trim().toLowerCase())) {
+        savingsBalance += amount;
+      }
+    } else if (t.type === "transfer") {
+      // Transfer has no destination account field yet; keep net impact neutral.
     }
   });
   
@@ -2277,6 +2543,24 @@ function render() {
   // Update balance displays
   document.getElementById("cash").textContent = formatMoney(cashBalance);
   document.getElementById("bank").textContent = formatMoney(bankBalance);
+  const totalLiquidBalance = Object.values(accountBalances).reduce((sum, value) => sum + Number(value || 0), 0);
+  const nonSavingsBalance = totalLiquidBalance - savingsBalance;
+  const savingsNode = document.getElementById('savingsBalance');
+  const nonSavingsNode = document.getElementById('nonSavingsBalance');
+  if (savingsNode) savingsNode.textContent = formatMoney(savingsBalance);
+  if (nonSavingsNode) nonSavingsNode.textContent = formatMoney(nonSavingsBalance);
+
+  const accountBalanceList = document.getElementById('accountBalancesList');
+  if (accountBalanceList) {
+    const ordered = Object.keys(accountBalances).sort((a, b) => a.localeCompare(b));
+    accountBalanceList.innerHTML = ordered.map((accountName) => `
+      <div class="account-row">
+        <strong>${safeText(accountName)}</strong>
+        <span>${safeText(formatMoneyFull(accountBalances[accountName]))}</span>
+      </div>
+    `).join('');
+  }
+
 }
 
 // ===== INITIALIZE =====
