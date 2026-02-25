@@ -218,8 +218,15 @@
       right.querySelector('.user-chip').addEventListener('click', () => window.logoutUser());
     }
 
-    window.addEventListener('online', () => location.reload());
-    window.addEventListener('offline', () => location.reload());
+    const statusPill = right.querySelector('.status-pill');
+    const updateStatusPill = () => {
+      if (!statusPill) return;
+      const next = syncStatusText();
+      statusPill.innerHTML = `<span class="status-dot" style="background:${next.color}"></span>${next.label}`;
+    };
+
+    window.addEventListener('online', updateStatusPill);
+    window.addEventListener('offline', updateStatusPill);
   }
 
   document.addEventListener('DOMContentLoaded', buildShell);

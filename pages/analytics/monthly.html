@@ -30,7 +30,7 @@
   <script src="../../js/ui-enhancements.js"></script>
   <script src="../../js/charts.js"></script>
 </head>
-<body>
+<body class="analytics-monthly-page">
 
 <div style="text-align: center; color: white; margin-bottom: 20px;">
   <h1>📅 Monthly Analytics</h1>
@@ -47,7 +47,7 @@
   <!-- Month Selector -->
   <div class="card">
     <h3>Select Month</h3>
-    <div style="display: flex; gap: 10px; align-items: center;">
+    <div class="monthly-controls" style="display: flex; gap: 10px; align-items: center;">
       <select id="monthSelect" onchange="updateMonthlyAnalytics()" style="padding: 10px; font-size: 16px;">
         <option value="">-- Current Month --</option>
       </select>
@@ -76,7 +76,7 @@
   </div>
 
   <!-- Charts -->
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+  <div class="monthly-charts-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
     <div class="card">
       <h3>Expense by Category</h3>
       <div style="position: relative; height: 300px;">
